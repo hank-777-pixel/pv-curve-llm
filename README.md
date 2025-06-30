@@ -1,8 +1,5 @@
 # PV Curve LLM (Work in Progress)
-<div align="left-center">
-  <img src="https://github.com/CURENT/andes/raw/master/docs/source/images/sponsors/CURENT_Logo_NameOnTrans.png" alt="CURENT ERC Logo" style="width: 300px; height: 120px; object-fit: contain; margin: 10px;">
-  <img src="ui/public/clemson-logo.png" alt="CLEMSON UNIVERSITY Logo" style="width: 300px; height: 120px; object-fit: contain; margin: 10px;">
-</div>
+<img src="https://github.com/CURENT/andes/raw/master/docs/source/images/sponsors/CURENT_Logo_NameOnTrans.png" alt="CURENT ERC Logo" width="300" height="auto">
 
 Use natural language to generate PV Curves for Voltage Stability Analysis via an AI agent.
 
