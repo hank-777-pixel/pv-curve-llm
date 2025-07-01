@@ -6,6 +6,14 @@ Notes on PV Curves and their calculation.
 p_2(v_2):
 ![Equation 1](equation1.png)
 
+**Variables**
+- **p₂**: Active power delivered to the load at bus 2 (in per-unit or MW)
+- **v₂**: Voltage magnitude at bus 2 (load bus) in per-unit
+- **v₂^ref**: Reference voltage magnitude at bus 2 (typically 1.0 per-unit)
+- **x_L**: Line reactance between the source and load bus (in per-unit)
+- **φ₂**: Power factor angle at bus 2 (phase angle between voltage and current)
+- **tan φ₂**: Tangent of the power factor angle (relates to Q/P ratio)
+
 v_2(p_2):
 ![Equation 2](equation2.png)
 
