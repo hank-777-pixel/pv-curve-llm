@@ -5,13 +5,10 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict, Annotated, Literal
 from vector import retriever
+from prompts import get_prompts
 import json
 
-def load_prompts():
-    with open("./prompts.json", "r") as f:
-        return json.load(f)
-
-prompts = load_prompts()
+prompts = get_prompts()
 
 # Currently using llama3.2:1b model for Ollama Tool support.
 # TODO: Replace with custom model defined in Modelfile
