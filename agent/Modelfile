@@ -1,4 +1,10 @@
 # https://ollama.readthedocs.io/en/modelfile/
+# "To use this:
+#  Save it as a file (e.g. Modelfile)
+#  ollama create choose-a-model-name -f <location of the file e.g. ./Modelfile>'
+#  ollama run choose-a-model-name
+#  Start using the model!"
+
 # Currently using LLaMa for Ollama tool support
 FROM llama3.2:1b
 
@@ -12,4 +18,22 @@ PARAMETER temperature 0.5
 PARAMETER top_k 20
 PARAMETER top_p 0.6
 
-# TODO: Add MESSAGE to provide history to enhance prompt classification
+# Example messages to help classify between questions and commands
+MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
+MESSAGE assistant question
+MESSAGE user Set the base MVA to 150
+MESSAGE assistant command
+MESSAGE user Explain the relationship between reactive power and voltage stability
+MESSAGE assistant question
+MESSAGE user Change the monitor bus to bus 14
+MESSAGE assistant command
+MESSAGE user How do generator limits affect voltage collapse?
+MESSAGE assistant question
+MESSAGE user Update the initial step size to 50 MW
+MESSAGE assistant command
+MESSAGE user What is the current step size?
+MESSAGE assistant question
+MESSAGE user What inputs are required to generate a PV curve?
+MESSAGE assistant question
+MESSAGE user Can you update the base MVA to 100?
+MESSAGE assistant command

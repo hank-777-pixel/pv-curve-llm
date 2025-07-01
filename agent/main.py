@@ -14,6 +14,7 @@ def load_prompts():
 prompts = load_prompts()
 
 # Currently using llama3.2:1b model for Ollama Tool support.
+# TODO: Replace with custom model defined in Modelfile
 llm = ChatOllama(
     model="llama3.2:1b",
     base_url="http://localhost:11434"
