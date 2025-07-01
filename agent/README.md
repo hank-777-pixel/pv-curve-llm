@@ -11,7 +11,7 @@ AI Agent which creates PV curves or answers Voltage Stability related requests u
 Run Agent locally:
 
 ```bash
-cd /server/ai
+cd /agent
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
