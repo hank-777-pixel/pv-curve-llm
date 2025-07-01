@@ -3,7 +3,7 @@ AI Agent which creates PV curves or answers Voltage Stability related requests u
 
 ## TODO
 - [ ] `/pv-curve`
-- [ ] `Modelfile`
+- [X] `Modelfile`
 - [ ] Improve documentation
 - [ ] Improve prompting and classification model
 
