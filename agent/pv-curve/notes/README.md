@@ -1,9 +1,12 @@
+# Notes
+Notes on PV Curves and their calculation.
+
 # **Power System Modelling and Scripting** By Federico Milano
 https://books.google.com/books?id=MQu7IqoLrfYC&pg=PA106#v=onepage&q&f=false
-Notes on PV Curves and their calculation.
 
 ## Equations
 p_2(v_2):
+
 ![Equation 1](equation1.png)
 
 **Variables**
@@ -15,10 +18,10 @@ p_2(v_2):
 - **tan φ₂**: Tangent of the power factor angle (relates to Q/P ratio)
 
 v_2(p_2):
+
 ![Equation 2](equation2.png)
 
 ## Notes
-
 Some relevant remarks on (5.1) are:
 
 1. The system is characterized by a maximum value of the load power, say p₂^max, which is known as *maximum loading condition*.
