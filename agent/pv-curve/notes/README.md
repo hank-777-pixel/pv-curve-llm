@@ -31,3 +31,7 @@ Some relevant remarks on (5.1) are:
 3. For p₂ < p₂^max, there are two values of v₂ that solve (5.1). However, only the solution with the higher v₂ value (*upper solution*) is physically acceptable. The other value (*lower solution*) has only a mathematical interest.
 
 4. The shape of the PV curve is independent of the load power factor, as well as of system parameters. In other words, any network of any size and complexity shows a similar relationship between bus voltage magnitudes and load powers. PV curves are inherent the structure of classical power flow equations. As a matter of fact, as shown in (4.16) or (4.18), these have a quadratic dependence on bus voltages.
+
+# Other Notes
+
+The calculation of a PV curve involves measuring the current and voltage output of a PV module while varying the load. This process generates an I-V curve, which is then used to derive the power-voltage curve by multiplying the current and voltage values at each point.7 The power curve has a maximum point, known as the maximum power point (MPP), which is crucial for optimizing the performance of the PV system.
