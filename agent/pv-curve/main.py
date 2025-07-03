@@ -2,6 +2,9 @@ from pv_curve import run_pv_curve
 
 
 def main():
+    """
+    Locally test pv_curve.py used by the agent.
+    """
     grid_choices = "ieee14/ieee24/ieee30/ieee39/ieee57/ieee118/ieee300"
     grid = input(f"Grid ({grid_choices}) [ieee39]: ").strip().lower() or "ieee39"
     bus_default = 5 if grid == "ieee39" else 10
