@@ -1,7 +1,3 @@
-"""
-Work in progress.
-"""
-
 import numpy as np
 import pandapower as pp
 import pandapower.networks as pn
@@ -55,12 +51,12 @@ if __name__ == "__main__":
         bus_id = default_bus
 
     try:
-        voc_stc = float(input("Voc at STC (V) [40]: ") or 40)
-        isc_stc = float(input("Isc at STC (A) [8]: ") or 8)
-        vmpp_stc = float(input("Vmpp at STC (V) [32]: ") or 32)
-        impp_stc = float(input("Impp at STC (A) [7]: ") or 7)
+        voc_stc = float(input("Voc at STC (V) [41]: ") or 41)
+        isc_stc = float(input("Isc at STC (A) [8.9]: ") or 8.9)
+        vmpp_stc = float(input("Vmpp at STC (V) [34]: ") or 34)
+        impp_stc = float(input("Impp at STC (A) [8.2]: ") or 8.2)
     except ValueError:
-        voc_stc, isc_stc, vmpp_stc, impp_stc = 40.0, 8.0, 32.0, 7.0
+        voc_stc, isc_stc, vmpp_stc, impp_stc = 41.0, 8.9, 34.0, 8.2
 
     try:
         mu_voc = float(input("Voc temp coeff frac per °C (-0.0023): ") or -0.0023)
@@ -80,9 +76,9 @@ if __name__ == "__main__":
         g_levels = [1000.0]
 
     try:
-        n_pts = int(input("Number of I-V samples [300]: ") or 300)
+        n_pts = int(input("Number of I-V samples [400]: ") or 400)
     except ValueError:
-        n_pts = 300
+        n_pts = 400
 
     alpha = compute_alpha(voc_stc, isc_stc, vmpp_stc, impp_stc)
 
