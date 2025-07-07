@@ -4,7 +4,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from typing_extensions import TypedDict, Annotated, Literal
-from vector import retriever
+from vector import retriever as _make_retriever
 from prompts import get_prompts
 from pv_curve.pv_curve import run_pv_curve
 from dotenv import load_dotenv
@@ -19,6 +19,8 @@ llm = ChatOllama(
     model=os.getenv("OLLAMA_MODEL") or "llama3.1:8b",
     base_url="http://localhost:11434"
 )
+
+retriever = _make_retriever()
 
 class Inputs(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -65,11 +67,12 @@ def classify_message(state: State):
     ]
     for trig in run_triggers:
         if content_lc == trig or (trig in content_lc and len(content_lc) <= 40):
+            print("Classifying input complete")
             return {"message_type": "pv_curve"}
-
 
     classifier_llm = llm.with_structured_output(MessageClassifier)
 
+    print("Classifying input...")
     result = classifier_llm.invoke([
         {
             "role": "system",
@@ -80,6 +83,7 @@ def classify_message(state: State):
             "content": last_message.content
         }
     ])
+    print("Classification complete")
 
     return {"message_type": result.message_type}
 
@@ -96,7 +100,9 @@ def router(state: State):
 def response_agent(state: State):
     last_message = state["messages"][-1]
 
+    print("Retrieving context...")
     context = retriever.invoke(last_message.content)
+    print("Context retrieved")
 
     messages = [
         {"role": "system",
@@ -105,7 +111,9 @@ def response_agent(state: State):
          "content": prompts["response_agent"]["user"].format(user_input=last_message.content)}
     ]
 
+    print("Generating response...")
     reply = llm.invoke(messages)
+    print("Response generated")
     return {"messages": [reply]}
 
 def command_agent(state: State):
@@ -114,6 +122,7 @@ def command_agent(state: State):
     
     current_inputs: Inputs = state["inputs"]
     
+    print("Modifying inputs...")
     result = modifier_llm.invoke([
         {
             "role": "system",
@@ -124,6 +133,7 @@ def command_agent(state: State):
             "content": last_message.content
         }
     ])
+    print("Inputs modified")
     
     # Build a new validated Inputs instance. Unknown keys will raise ValidationError.
     try:
@@ -138,7 +148,9 @@ def command_agent(state: State):
     return {"messages": [reply], "inputs": new_inputs}
 
 def pv_curve_agent(state: State):
+    print("Generating PV curve...")
     summary = run_pv_curve(**state["inputs"].model_dump())
+    print("PV curve generated")
     reply = AIMessage(content=summary)
     return {"messages": [reply]}
 

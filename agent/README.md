@@ -2,7 +2,7 @@
 AI Agent which creates PV curves or answers Voltage Stability related requests using LLMs and RAG.
 
 ## TODO
-- [ ] `/pv-curve`
+- [ ] `/pv_curve`
 - [X] `Modelfile`
 - [ ] Improve documentation
 - [ ] Improve prompting and classification model

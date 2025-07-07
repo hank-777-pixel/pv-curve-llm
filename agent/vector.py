@@ -7,7 +7,7 @@ DB_LOCATION = "./vector_db"
 # Model used to embed the text into vectors
 EMBEDDING_MODEL = "mxbai-embed-large"
 # Number of vectors to return for each RAG query. Increasing this will increase the accuracy of the RAG query but will reduce speed.
-NUM_VECTORS = 10
+NUM_VECTORS = 15
 
 def retriever():
     """

@@ -23,6 +23,7 @@ RESPONSE_AGENT_USER = """
 Here is the question to answer, be sure to keep your answer concise and ensure accuracy: {user_input}
 """
 
+# TODO: Explain format of inputs and how to update them (i.e. don't add anything new only change existing ones)
 COMMAND_AGENT_SYSTEM = """
 Extract the parameter and new value from the user request. Current inputs: {current_inputs}
 """
