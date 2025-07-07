@@ -45,6 +45,7 @@ class MessageClassifier(BaseModel):
         description="Classify if the message requires a tool call/command, a PV-curve generation/run, or a question/request that requires a knowledge response."
     )
 
+# TODO: Experiment with Literals instead
 class InputModifier(BaseModel):
     parameter: str = Field(..., description="The parameter to modify")
     value: float = Field(..., description="The new value for the parameter")

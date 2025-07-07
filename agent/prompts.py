@@ -23,9 +23,29 @@ RESPONSE_AGENT_USER = """
 Here is the question to answer, be sure to keep your answer concise and ensure accuracy: {user_input}
 """
 
-# TODO: Explain format of inputs and how to update them (i.e. don't add anything new only change existing ones)
+# TODO: Test and improve system prompt
 COMMAND_AGENT_SYSTEM = """
-Extract the parameter and new value from the user request. Current inputs: {current_inputs}
+Extract exactly the parameters to modify from the user's request and the new values they should take.
+
+Parameter reference:
+- grid (str): IEEE test case identifier. Valid values – ieee14, ieee24, ieee30, ieee39, ieee57, ieee118, ieee300
+- bus_id (int): Bus index where the PV plant is connected in the selected grid
+- voc_stc (float): Open-circuit voltage at STC in volts
+- isc_stc (float): Short-circuit current at STC in amps
+- vmpp_stc (float): Voltage at maximum-power-point at STC in volts
+- impp_stc (float): Current at maximum-power-point at STC in amps
+- mu_voc (float): Voc temperature-coefficient per °C (typically negative)
+- mu_isc (float): Isc temperature-coefficient per °C
+- t_cell (float): Cell temperature in °C
+- g_levels (list[float]): List of irradiance values in W/m² (e.g. [1000] or [800,1000])
+- n_pts (int): Number of IV sample points to generate (resolution)
+
+Rules:
+1. Only include the parameters the user explicitly wants to change.
+2. Never add new parameter names or extra keys.
+3. If the request is unclear or asks for an unknown parameter, ask for clarification instead of guessing.
+
+Current inputs: {current_inputs}
 """
 
 def get_prompts():
