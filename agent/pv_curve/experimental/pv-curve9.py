@@ -3,81 +3,60 @@ import matplotlib.pyplot as plt
 import pandapower as pp
 import pandapower.networks as pn
 
-# This function creates a P–V curve to show how bus voltage drops as the system load increases
 def generate_pv_curve(
-    network_loader=pn.case39,  # Which test system to use (e.g., IEEE 39-bus system)
-    target_bus_idx=5,          # Bus number where we monitor voltage
-    step_size=0.01,            # Increment size for load increase (e.g., 1% per step)
-    max_scale=3.0,             # Maximum multiplier for load (e.g., 3 = 300% load)
-    power_factor=0.95,         # Assumed constant power factor (relationship between real and reactive power)
-    voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
-    save_path="generated/pv_curve_voltage_stability.png"  # File path to save the plot
+    network_loader=pn.case39,
+    target_bus_idx=5,
+    step_size=0.01,
+    max_scale=3.0,
+    power_factor=0.95,
+    voltage_limit=0.4,
+    save_path="generated/pv_curve_voltage_stability.png"
 ):
-    # Load the example power network
     net = network_loader()
 
-    # Save original active (P) and reactive (Q) loads to scale later
     net.load["p_mw_base"] = net.load["p_mw"]
     net.load["q_mvar_base"] = net.load["q_mvar"]
 
-    # List of all buses with loads connected
     scale_buses = list(net.load["bus"].values)
-
-    # Store results for each step (total load and voltage)
     results = []
 
-    # Start from normal load (scale = 1.0)
     scale = 1.0
     converged = True
 
-    # Loop to keep increasing the load step by step
     while scale <= max_scale and converged:
         for idx in net.load.index:
             if net.load.at[idx, "bus"] in scale_buses:
                 base_p = net.load.at[idx, "p_mw_base"]
-                
-                # Increase active power
                 net.load.at[idx, "p_mw"] = base_p * scale
-                
-                # Calculate corresponding reactive power using power factor
                 net.load.at[idx, "q_mvar"] = net.load.at[idx, "p_mw"] * np.tan(np.arccos(power_factor))
 
         try:
-            # Run power flow analysis to solve for voltages
             pp.runpp(net, init="results")
-            
-            # Get voltage magnitude at the chosen bus
             v_mag = net.res_bus.at[target_bus_idx, "vm_pu"]
-            
-            # Calculate total system active load
             total_p = net.load["p_mw"].sum()
 
-            # Save the current load and voltage for plotting later
             results.append((total_p, v_mag))
 
-            # Stop if voltage drops below chosen limit (collapse point)
             if v_mag < voltage_limit:
                 print("Voltage below limit, stopping.")
                 break
 
         except pp.LoadflowNotConverged:
-            # If the solver can't find a valid solution, we have reached the collapse point
             print("Power flow did not converge — collapse point reached.")
             converged = False
             break
 
-        # Increase the load multiplier for the next step
         scale += step_size
 
-    # Split saved results into separate lists for plotting
+    # Extract data
     P_vals, V_vals = zip(*results)
 
-    # Find point with maximum load (approximate nose point of the curve)
+    # Find approximate "nose" point (maximum load)
     max_p_idx = np.argmax(P_vals)
     nose_p = P_vals[max_p_idx]
     nose_v = V_vals[max_p_idx]
 
-    # Create the plot
+    # Plot
     plt.figure(figsize=(8, 6))
     plt.plot(P_vals, V_vals, marker="o", linestyle="-", color="blue", label="P-V Curve")
     plt.scatter(nose_p, nose_v, color="red", zorder=5, label="Approx. Nose Point")
@@ -98,13 +77,11 @@ def generate_pv_curve(
 
     print(f"\nP–V curve saved to {save_path}")
 
-
 if __name__ == "__main__":
     generate_pv_curve(
         network_loader=pn.case39,
         target_bus_idx=5,
         step_size=0.01,
         max_scale=3.0,
-        power_factor=0.95,
-        voltage_limit=0.4,
+        power_factor=0.95
     )

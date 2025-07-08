@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from typing_extensions import TypedDict, Annotated, Literal
 from vector import retriever as _make_retriever
 from prompts import get_prompts
-from pv_curve.pv_curve import run_pv_curve
+from pv_curve.pv_curve import generate_pv_curve
+import pandapower.networks as pn
 from dotenv import load_dotenv
 import os
 
@@ -25,17 +26,13 @@ retriever = _make_retriever()
 class Inputs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    grid: str = "ieee39"
-    bus_id: int = 5
-    voc_stc: float = 40.0
-    isc_stc: float = 9.0
-    vmpp_stc: float = 32.0
-    impp_stc: float = 8.0
-    mu_voc: float = -0.002
-    mu_isc: float = 0.0005
-    t_cell: float = 25.0
-    g_levels: list[float] = [1000.0]
-    n_pts: int = 400
+    grid: str = "ieee39"            # Test system key (e.g., ieee39)
+    bus_id: int = 5                 # Bus to monitor voltage
+    step_size: float = 0.01         # Load increment per iteration
+    max_scale: float = 3.0          # Max load multiplier
+    power_factor: float = 0.95      # Constant power factor
+    voltage_limit: float = 0.4      # Voltage threshold to stop
+    save_path: str = "generated/pv_curve_voltage_stability.png"  # Output plot path
 
 DEFAULT_INPUTS = Inputs()
 
@@ -48,7 +45,7 @@ class MessageClassifier(BaseModel):
 # TODO: Experiment with Literals instead
 class InputModifier(BaseModel):
     parameter: str = Field(..., description="The parameter to modify")
-    value: float = Field(..., description="The new value for the parameter")
+    value: str | float = Field(..., description="The new value for the parameter")
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -150,9 +147,32 @@ def command_agent(state: State):
 
 def pv_curve_agent(state: State):
     print("Generating PV curve...")
-    summary = run_pv_curve(**state["inputs"].model_dump())
+
+    inputs = state["inputs"]
+
+    # TODO: Move this handling to pv_curve.py
+    def _loader_for(key: str):
+        key = key.lower()
+        if key == "ieee24" and hasattr(pn, "case24_ieee_rts"):
+            return pn.case24_ieee_rts
+        digits = "".join(filter(str.isdigit, key))
+        fn = f"case{digits}"
+        return getattr(pn, fn, pn.case39)
+
+    network_loader = _loader_for(inputs.grid)
+
+    generate_pv_curve(
+        network_loader=network_loader,
+        target_bus_idx=inputs.bus_id,
+        step_size=inputs.step_size,
+        max_scale=inputs.max_scale,
+        power_factor=inputs.power_factor,
+        voltage_limit=inputs.voltage_limit,
+        save_path=inputs.save_path,
+    )
+
     print("PV curve generated")
-    reply = AIMessage(content=summary)
+    reply = AIMessage(content=f"PV curve generated and saved to {inputs.save_path}")
     return {"messages": [reply]}
 
 graph_builder = StateGraph(State)
