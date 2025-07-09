@@ -1,5 +1,4 @@
 from pv_curve import generate_pv_curve
-import pandapower.networks as pn
 
 
 def main():
@@ -8,15 +7,6 @@ def main():
     """
     grid_choices = "ieee14/ieee24/ieee30/ieee39/ieee57/ieee118/ieee300"
     grid_key = input(f"Grid ({grid_choices}) [ieee39]: ").strip().lower() or "ieee39"
-
-    def _loader_for(key: str):
-        if key == "ieee24" and hasattr(pn, "case24_ieee_rts"):
-            return pn.case24_ieee_rts
-        digits = "".join(filter(str.isdigit, key))
-        fn = f"case{digits}"
-        return getattr(pn, fn, pn.case39)
-
-    network_loader = _loader_for(grid_key)
 
     bus_default = 5 if grid_key == "ieee39" else 10
     bus_id = int(input(f"Bus index [{bus_default}]: ") or bus_default)
@@ -28,7 +18,7 @@ def main():
     save_path = input("Save path [generated/pv_curve_voltage_stability.png]: ").strip() or "generated/pv_curve_voltage_stability.png"
 
     generate_pv_curve(
-        network_loader=network_loader,
+        grid=grid_key,
         target_bus_idx=bus_id,
         step_size=step_size,
         max_scale=max_scale,

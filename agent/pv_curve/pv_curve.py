@@ -5,16 +5,29 @@ import pandapower.networks as pn
 
 # This function creates a P–V curve to show how bus voltage drops as the system load increases
 def generate_pv_curve(
-    network_loader=pn.case39,  # Which test system to use (e.g., IEEE 39-bus system)
+    grid="ieee39",             # Which test system to use (e.g., IEEE 39-bus system)
     target_bus_idx=5,          # Bus number where we monitor voltage
     step_size=0.01,            # Increment size for load increase (e.g., 1% per step)
     max_scale=3.0,             # Maximum multiplier for load (e.g., 3 = 300% load)
     power_factor=0.95,         # Assumed constant power factor (relationship between real and reactive power)
     voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
-    save_path="generated/pv_curve_voltage_stability.png"  # File path to save the plot
+    save_path="generated/pv_curve_voltage_stability.png"
 ):
-    # Load the example power network
-    net = network_loader()
+    # TODO: Use enums instead of strings to assist LLM usage and prevent hallucinations
+    net_map = {
+        "ieee14": pn.case14,
+        "ieee24": pn.case24_ieee_rts,
+        "ieee30": pn.case30,
+        "ieee39": pn.case39,
+        "ieee57": pn.case57,
+        "ieee118": pn.case118,
+        "ieee300": pn.case300,
+    }
+
+    if grid not in net_map:
+        raise ValueError(f"Unsupported grid '{grid}'. Choose from {list(net_map)}")
+
+    net = net_map[grid]()
 
     # Save original active (P) and reactive (Q) loads to scale later
     net.load["p_mw_base"] = net.load["p_mw"]
@@ -98,12 +111,13 @@ def generate_pv_curve(
 
     print(f"\nP–V curve saved to {save_path}")
 
+    #TODO: Add text summary of results in addition to plot for the model to understand
 
 if __name__ == "__main__":
     generate_pv_curve(
-        network_loader=pn.case39,
-        target_bus_idx=5,
-        step_size=0.01,
+        grid="ieee118",
+        target_bus_idx=80,
+        step_size=0.001,
         max_scale=3.0,
         power_factor=0.95,
         voltage_limit=0.4,

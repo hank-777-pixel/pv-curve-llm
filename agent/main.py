@@ -150,19 +150,8 @@ def pv_curve_agent(state: State):
 
     inputs = state["inputs"]
 
-    # TODO: Move this handling to pv_curve.py
-    def _loader_for(key: str):
-        key = key.lower()
-        if key == "ieee24" and hasattr(pn, "case24_ieee_rts"):
-            return pn.case24_ieee_rts
-        digits = "".join(filter(str.isdigit, key))
-        fn = f"case{digits}"
-        return getattr(pn, fn, pn.case39)
-
-    network_loader = _loader_for(inputs.grid)
-
     generate_pv_curve(
-        network_loader=network_loader,
+        grid=inputs.grid,
         target_bus_idx=inputs.bus_id,
         step_size=inputs.step_size,
         max_scale=inputs.max_scale,
@@ -182,6 +171,7 @@ graph_builder.add_node("router", router)
 graph_builder.add_node("response", response_agent)
 graph_builder.add_node("command", command_agent)
 graph_builder.add_node("pv_curve", pv_curve_agent)
+# TODO: Add analysis node which analyses PV curve results to provide insight
 
 graph_builder.add_edge(START, "classifier")
 graph_builder.add_edge("classifier", "router")
