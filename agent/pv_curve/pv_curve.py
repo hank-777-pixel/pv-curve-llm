@@ -13,6 +13,7 @@ def generate_pv_curve(
     voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
     save_path="generated/pv_curve_voltage_stability.png",
     capacitive=False,         # Whether the power factor is capacitive or inductive (default is inductive)
+    continuation=True,        # Whether to show mirrored lower approximation
 ):
     # TODO: Use enums instead of strings to assist LLM usage and prevent hallucinations
     net_map = {
@@ -106,29 +107,31 @@ def generate_pv_curve(
         fontsize=9
     )
 
-    # Simulates continuation power flow, although it is not a true continuation power flow due to pandapower limitations
-    # Mirrors curve under the nose point
-    # TODO: Make this optional in input
-    V_mirror = []
-    for v in V_vals:
-        mirrored_v = 2 * nose_v - v
-        # Clip to 0 for theoretical reasons since it can never be negative
-        if mirrored_v > 0:
-            V_mirror.append(mirrored_v)
-        else:
-            V_mirror.append(np.nan)
+    if continuation:
+        # Simulates continuation power flow, although it is not a true continuation power flow due to pandapower limitations
+        # Mirrors curve under the nose point
+        V_mirror = []
+        for v in V_vals:
+            mirrored_v = 2 * nose_v - v
+            # Clip to 0 for theoretical reasons since it can never be negative
+            if mirrored_v > 0:
+                V_mirror.append(mirrored_v)
+            else:
+                V_mirror.append(np.nan)
 
-    # Plot the approximate lower branch as dotted line
-    plt.plot(P_vals, V_mirror, linestyle="--", color="gray", label="Approx. Lower Branch (Visual)")
-
+        plt.plot(P_vals, V_mirror, linestyle="--", color="gray", label="Approx. Lower Branch (Visual)")
 
     plt.xlabel("Total Active Load P (MW)")
     plt.ylabel(f"Voltage at Bus {target_bus_idx} (pu)")
     plt.title("System P–V Curve (Voltage Stability Analysis)")
     
     # Set y-axis ticks every 0.05 for more precision
-    y_min = max(0, min(min(V_vals), min([v for v in V_mirror if not np.isnan(v)])) - 0.05)
-    y_max = max(max(V_vals), max([v for v in V_mirror if not np.isnan(v)])) + 0.05
+    if continuation:
+        y_min = max(0, min(min(V_vals), min([v for v in V_mirror if not np.isnan(v)])) - 0.05)
+        y_max = max(max(V_vals), max([v for v in V_mirror if not np.isnan(v)])) + 0.05
+    else:
+        y_min = max(0, min(V_vals) - 0.05)
+        y_max = max(V_vals) + 0.05
     y_ticks = np.arange(np.floor(y_min * 20) / 20, np.ceil(y_max * 20) / 20 + 0.05, 0.05)
     plt.yticks(y_ticks)
     
@@ -137,9 +140,46 @@ def generate_pv_curve(
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.close()
 
-    print(f"\nP–V curve saved to {save_path}")
 
-    # TODO: Add text summary of results in addition to plot for the model to understand and analyze
+    results_summary = {
+        "grid_system": grid,
+        "target_bus": target_bus_idx,
+        "power_factor": power_factor,
+        "capacitive_load": capacitive,
+        "load_values_mw": list(P_vals),
+        "voltage_values_pu": list(V_vals),
+        "nose_point": {
+            "load_mw": float(nose_p),
+            "voltage_pu": float(nose_v),
+            "index": int(max_p_idx)
+        },
+        "initial_conditions": {
+            "load_mw": float(P_vals[0]),
+            "voltage_pu": float(V_vals[0])
+        },
+        "final_conditions": {
+            "load_mw": float(P_vals[-1]),
+            "voltage_pu": float(V_vals[-1])
+        },
+        "voltage_drop_total": float(V_vals[0] - V_vals[-1]),
+        "load_margin_mw": float(nose_p - P_vals[0]),
+        "converged_steps": len(results),
+        "voltage_limit": voltage_limit
+    }
+
+    print(f"\nP–V Curve Analysis Results:")
+    print(f"Grid System: {grid.upper()}")
+    print(f"Target Bus: {target_bus_idx}")
+    print(f"Initial Load: {results_summary['initial_conditions']['load_mw']:.1f} MW")
+    print(f"Initial Voltage: {results_summary['initial_conditions']['voltage_pu']:.3f} pu")
+    print(f"Nose Point Load: {results_summary['nose_point']['load_mw']:.1f} MW")
+    print(f"Nose Point Voltage: {results_summary['nose_point']['voltage_pu']:.3f} pu")
+    print(f"Load Margin: {results_summary['load_margin_mw']:.1f} MW")
+    print(f"Total Voltage Drop: {results_summary['voltage_drop_total']:.3f} pu")
+    print(f"Converged Steps: {results_summary['converged_steps']}")
+    print(f"P–V curve saved to {save_path}")
+
+    return results_summary
 
 if __name__ == "__main__":
     generate_pv_curve(
