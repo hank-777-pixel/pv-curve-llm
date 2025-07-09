@@ -35,3 +35,11 @@ Some relevant remarks on (5.1) are:
 # Other Notes
 
 The calculation of a PV curve involves measuring the current and voltage output of a PV module while varying the load. This process generates an I-V curve, which is then used to derive the power-voltage curve by multiplying the current and voltage values at each point.7 The power curve has a maximum point, known as the maximum power point (MPP), which is crucial for optimizing the performance of the PV system.
+
+# TODO
+
+Implement continuation power flow
+ - Should allow lower part of graph to be generated
+
+Power factor: Inductive or capacitive (Inductive)
+ - Add this option

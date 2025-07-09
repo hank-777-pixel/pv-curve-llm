@@ -3,9 +3,12 @@ AI Agent which creates PV curves or answers Voltage Stability related requests u
 
 ## TODO
 - [ ] `/pv_curve`
-- [X] `Modelfile`
+- [X] Improve `Modelfile`
 - [ ] Improve documentation
-- [ ] Improve prompting and classification model
+- [ ] Improve prompting `prompts.py` and classification model
+- [ ] Create visual map of nodes
+- [ ] Consider instead of just answering questions about PV-curves generally to fetch guidelines,
+explain parameters, etc. (Add more nodes to LangGraph)
 
 ## Installation & Run
 Run Agent locally:

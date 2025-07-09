@@ -11,7 +11,8 @@ def generate_pv_curve(
     max_scale=3.0,             # Maximum multiplier for load (e.g., 3 = 300% load)
     power_factor=0.95,         # Assumed constant power factor (relationship between real and reactive power)
     voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
-    save_path="generated/pv_curve_voltage_stability.png"
+    save_path="generated/pv_curve_voltage_stability.png",
+    capacitive=False,         # Whether the power factor is capacitive or inductive (default is inductive)
 ):
     # TODO: Use enums instead of strings to assist LLM usage and prevent hallucinations
     net_map = {
@@ -53,7 +54,10 @@ def generate_pv_curve(
                 net.load.at[idx, "p_mw"] = base_p * scale
                 
                 # Calculate corresponding reactive power using power factor
-                net.load.at[idx, "q_mvar"] = net.load.at[idx, "p_mw"] * np.tan(np.arccos(power_factor))
+                # net.load.at[idx, "q_mvar"] = net.load.at[idx, "p_mw"] * np.tan(np.arccos(power_factor))
+
+                sign = -1 if capacitive else 1
+                net.load.at[idx, "q_mvar"] = sign * net.load.at[idx, "p_mw"] * np.tan(np.arccos(power_factor))
 
         try:
             # Run power flow analysis to solve for voltages
@@ -101,9 +105,33 @@ def generate_pv_curve(
         arrowprops=dict(arrowstyle="->", color="black"),
         fontsize=9
     )
+
+    # Simulates continuation power flow, although it is not a true continuation power flow due to pandapower limitations
+    # Mirrors curve under the nose point
+    # TODO: Make this optional in input
+    V_mirror = []
+    for v in V_vals:
+        mirrored_v = 2 * nose_v - v
+        # Clip to 0 for theoretical reasons since it can never be negative
+        if mirrored_v > 0:
+            V_mirror.append(mirrored_v)
+        else:
+            V_mirror.append(np.nan)
+
+    # Plot the approximate lower branch as dotted line
+    plt.plot(P_vals, V_mirror, linestyle="--", color="gray", label="Approx. Lower Branch (Visual)")
+
+
     plt.xlabel("Total Active Load P (MW)")
     plt.ylabel(f"Voltage at Bus {target_bus_idx} (pu)")
     plt.title("System P–V Curve (Voltage Stability Analysis)")
+    
+    # Set y-axis ticks every 0.05 for more precision
+    y_min = max(0, min(min(V_vals), min([v for v in V_mirror if not np.isnan(v)])) - 0.05)
+    y_max = max(max(V_vals), max([v for v in V_mirror if not np.isnan(v)])) + 0.05
+    y_ticks = np.arange(np.floor(y_min * 20) / 20, np.ceil(y_max * 20) / 20 + 0.05, 0.05)
+    plt.yticks(y_ticks)
+    
     plt.grid(True)
     plt.legend()
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
@@ -111,14 +139,14 @@ def generate_pv_curve(
 
     print(f"\nP–V curve saved to {save_path}")
 
-    #TODO: Add text summary of results in addition to plot for the model to understand
+    # TODO: Add text summary of results in addition to plot for the model to understand and analyze
 
 if __name__ == "__main__":
     generate_pv_curve(
-        grid="ieee118",
-        target_bus_idx=80,
-        step_size=0.001,
+        grid="ieee39",
+        target_bus_idx=5,
+        step_size=0.005,
         max_scale=3.0,
-        power_factor=0.95,
+        power_factor=1.0,
         voltage_limit=0.4,
     )
