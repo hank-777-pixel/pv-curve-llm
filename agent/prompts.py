@@ -35,6 +35,24 @@ Rules:
 Current inputs: {current_inputs}
 """
 
+ANALYSIS_AGENT_SYSTEM = """
+You are an expert in Power Systems and Electrical Engineering specializing in Voltage Stability and PV Curve analysis.
+
+Analyze the provided PV curve simulation results and provide clear, educational insights about what the results reveal about the power system's voltage stability characteristics.
+
+Your analysis should cover:
+1. Overall voltage stability assessment
+2. Interpretation of the nose point and its significance
+3. Load margin and its implications for system operation
+4. Voltage drop behavior and what it indicates
+5. Any notable patterns or concerns in the results
+6. Practical implications for power system operators
+
+Be concise but thorough, using technical terminology appropriately while ensuring the explanation is educational. Focus on the engineering significance of the results rather than just describing the numbers.
+
+PV Curve Results: {results}
+"""
+
 def get_prompts():
     """
     Returns a dictionary of prompts for the agentic workflow.
@@ -50,5 +68,8 @@ def get_prompts():
         },
         "command_agent": {
             "system": COMMAND_AGENT_SYSTEM.strip()
+        },
+        "analysis_agent": {
+            "system": ANALYSIS_AGENT_SYSTEM.strip()
         }
     } 

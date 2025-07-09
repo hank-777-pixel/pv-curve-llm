@@ -51,6 +51,7 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
     message_type: str | None
     inputs: Inputs
+    results: dict | None
 
 def classify_message(state: State):
     last_message = state["messages"][-1]
@@ -150,7 +151,7 @@ def pv_curve_agent(state: State):
 
     inputs = state["inputs"]
 
-    generate_pv_curve(
+    results = generate_pv_curve(
         grid=inputs.grid,
         target_bus_idx=inputs.bus_id,
         step_size=inputs.step_size,
@@ -162,6 +163,30 @@ def pv_curve_agent(state: State):
 
     print("PV curve generated")
     reply = AIMessage(content=f"PV curve generated and saved to {inputs.save_path}")
+    return {"messages": [reply], "results": results}
+
+# TODO: Add RAG, maybe combine with response agent somehow
+def analysis_agent(state: State):
+    print("Analyzing PV curve results...")
+    
+    results = state.get("results")
+    if not results:
+        reply = AIMessage(content="No PV curve results available for analysis.")
+        return {"messages": [reply]}
+    
+    messages = [
+        {
+            "role": "system",
+            "content": prompts["analysis_agent"]["system"].format(results=results)
+        },
+        {
+            "role": "user",
+            "content": "Please analyze these PV curve results and provide insights."
+        }
+    ]
+    
+    reply = llm.invoke(messages)
+    print("Analysis complete")
     return {"messages": [reply]}
 
 graph_builder = StateGraph(State)
@@ -171,7 +196,7 @@ graph_builder.add_node("router", router)
 graph_builder.add_node("response", response_agent)
 graph_builder.add_node("command", command_agent)
 graph_builder.add_node("pv_curve", pv_curve_agent)
-# TODO: Add analysis node which analyses PV curve results to provide insight
+graph_builder.add_node("analysis", analysis_agent)
 
 graph_builder.add_edge(START, "classifier")
 graph_builder.add_edge("classifier", "router")
@@ -188,14 +213,15 @@ graph_builder.add_conditional_edges(
 
 graph_builder.add_edge("response", END)
 graph_builder.add_edge("command", END)
-graph_builder.add_edge("pv_curve", END)
+graph_builder.add_edge("pv_curve", "analysis")
+graph_builder.add_edge("analysis", END)
 
 graph = graph_builder.compile()
 
 def run_agent():
     print(f"Using model: {llm.model}")
 
-    state = {"messages": [], "message_type": None, "inputs": Inputs()}
+    state = {"messages": [], "message_type": None, "inputs": Inputs(), "results": None}
 
     while True:
         print("\nCurrent inputs:")
