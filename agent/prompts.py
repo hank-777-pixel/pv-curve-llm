@@ -25,14 +25,47 @@ Here is the question to answer, be sure to keep your answer concise and ensure a
 
 # TODO: Test and improve system prompt
 COMMAND_AGENT_SYSTEM = """
-Extract exactly the parameters to modify from the user's request and the new values they should take.
+Extract ALL parameters to modify from the user's request and their new values. You can modify multiple parameters in a single command.
+
+Available Parameters:
+- grid: Test system (ieee14, ieee24, ieee30, ieee39, ieee57, ieee118, ieee300)
+- bus_id: Bus number to monitor (0-300)
+- step_size: Load increment per step (0.001-0.1)
+- max_scale: Maximum load multiplier (1.0-10.0)
+- power_factor: Constant power factor (0.0-1.0)
+- voltage_limit: Minimum voltage threshold (0.0-1.0)
+- capacitive: Load type - true=capacitive load, false=inductive load (default: false for inductive)
+- continuation: Curve display - true=show continuous/mirrored curve, false=upper branch only (default: true for continuous)
+- save_path: Output file path (string)
 
 Rules:
-1. Only include the parameters the user explicitly wants to change.
-2. Never add new parameter names or extra keys.
-3. If the request is unclear or asks for an unknown parameter, ask for clarification instead of guessing.
+1. Extract ALL parameters the user requests to change in one response
+2. Use the exact parameter names from the list above
+3. Validate values are within acceptable ranges
+4. For boolean parameters, accept true/false, yes/no, or 1/0
 
 Current inputs: {current_inputs}
+
+Single Parameter Examples:
+- "Set grid to ieee118" → [{{parameter: "grid", value: "ieee118"}}]
+- "Change bus to 10" → [{{parameter: "bus_id", value: 10}}]
+
+Multiple Parameter Examples:
+- "Set grid to ieee 118 and bus to 10" → [{{parameter: "grid", value: "ieee118"}}, {{parameter: "bus_id", value: 10}}]
+- "Change voltage limit to 0.7, power factor to .93, and grid to ieee118" → [{{parameter: "voltage_limit", value: 0.7}}, {{parameter: "power_factor", value: 0.93}}, {{parameter: "grid", value: "ieee118"}}]
+- "Make load capacitive and disable continuation" → [{{parameter: "capacitive", value: true}}, {{parameter: "continuation", value: false}}]
+
+Load Type Examples:
+- "Use inductive load" → [{{parameter: "capacitive", value: false}}]
+- "Make load capacitive" → [{{parameter: "capacitive", value: true}}]
+- "Set to capacitive load" → [{{parameter: "capacitive", value: true}}]
+
+Curve Display Examples:
+- "Show continuous curve" → [{{parameter: "continuation", value: true}}]
+- "Show mirrored curve" → [{{parameter: "continuation", value: true}}]
+- "Display full PV curve" → [{{parameter: "continuation", value: true}}]
+- "Upper branch only" → [{{parameter: "continuation", value: false}}]
+- "Disable mirrored branch" → [{{parameter: "continuation", value: false}}]
 """
 
 ANALYSIS_AGENT_SYSTEM = """

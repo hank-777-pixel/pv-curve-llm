@@ -4,10 +4,10 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from typing_extensions import TypedDict, Annotated, Literal
+from typing import Union, List
 from vector import retriever as _make_retriever
 from prompts import get_prompts
 from pv_curve.pv_curve import generate_pv_curve
-import pandapower.networks as pn
 from dotenv import load_dotenv
 import os
 
@@ -23,18 +23,21 @@ llm = ChatOllama(
 
 retriever = _make_retriever()
 
+# Define allowed grid systems
+GridSystem = Literal["ieee14", "ieee24", "ieee30", "ieee39", "ieee57", "ieee118", "ieee300"]
+
 class Inputs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    grid: str = "ieee39"            # Test system key (e.g., ieee39)
-    bus_id: int = 5                 # Bus to monitor voltage
-    step_size: float = 0.01         # Load increment per iteration
-    max_scale: float = 3.0          # Max load multiplier
-    power_factor: float = 0.95      # Constant power factor
-    voltage_limit: float = 0.4      # Voltage threshold to stop
+    grid: GridSystem = "ieee39"
+    bus_id: int = Field(default=5, ge=0, le=300)  # Bus to monitor voltage (0-300 range)
+    step_size: float = Field(default=0.01, gt=0, le=0.1)  # Load increment per iteration
+    max_scale: float = Field(default=3.0, gt=1.0, le=10.0)  # Max load multiplier
+    power_factor: float = Field(default=0.95, gt=0, le=1.0)  # Constant power factor
+    voltage_limit: float = Field(default=0.4, gt=0, le=1.0)  # Voltage threshold to stop
+    capacitive: bool = Field(default=False)  # Whether load is capacitive or inductive
+    continuation: bool = Field(default=True)  # Whether to show mirrored curve
     save_path: str = "generated/pv_curve_voltage_stability.png"  # Output plot path
-
-DEFAULT_INPUTS = Inputs()
 
 class MessageClassifier(BaseModel):
     message_type: Literal["question", "command", "pv_curve"] = Field(
@@ -42,10 +45,14 @@ class MessageClassifier(BaseModel):
         description="Classify if the message requires a tool call/command, a PV-curve generation/run, or a question/request that requires a knowledge response."
     )
 
-# TODO: Experiment with Literals instead
+InputParameter = Literal["grid", "bus_id", "step_size", "max_scale", "power_factor", "voltage_limit", "capacitive", "continuation", "save_path"]
+
+class ParameterModification(BaseModel):
+    parameter: InputParameter = Field(..., description="The parameter to modify")
+    value: Union[str, float, int, bool] = Field(..., description="The new value for the parameter")
+
 class InputModifier(BaseModel):
-    parameter: str = Field(..., description="The parameter to modify")
-    value: str | float = Field(..., description="The new value for the parameter")
+    modifications: List[ParameterModification] = Field(..., description="List of parameter modifications to apply")
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -122,29 +129,70 @@ def command_agent(state: State):
     current_inputs: Inputs = state["inputs"]
     
     print("Modifying inputs...")
-    result = modifier_llm.invoke([
-        {
-            "role": "system",
-            "content": prompts["command_agent"]["system"].format(current_inputs=current_inputs)
-        },
-        {
-            "role": "user",
-            "content": last_message.content
-        }
-    ])
-    print("Inputs modified")
-    
-    # Build a new validated Inputs instance. Unknown keys will raise ValidationError.
     try:
-        new_inputs = current_inputs.model_copy(update={result.parameter: result.value})
-    except ValidationError:
-        reply = AIMessage(content=f"Parameter '{result.parameter}' is not recognized. Allowed parameters: {', '.join(Inputs.model_fields.keys())}")
+        result = modifier_llm.invoke([
+            {
+                "role": "system",
+                "content": prompts["command_agent"]["system"].format(current_inputs=current_inputs)
+            },
+            {
+                "role": "user",
+                "content": last_message.content
+            }
+        ])
+        print("Inputs modified")
+    except Exception as e:
+        reply = AIMessage(content=f"Error parsing command: {str(e)}. Please specify valid parameters and values.")
         return {"messages": [reply]}
-
-    reply_content = f"Updated {result.parameter} to {result.value}"
-    reply = AIMessage(content=reply_content)
     
-    return {"messages": [reply], "inputs": new_inputs}
+    try:
+        updates = {}
+        reply_parts = []
+        
+        for modification in result.modifications:
+            converted_value = modification.value
+            if modification.parameter in ["bus_id"]:
+                converted_value = int(modification.value)
+            elif modification.parameter in ["step_size", "max_scale", "power_factor", "voltage_limit"]:
+                converted_value = float(modification.value)
+            elif modification.parameter in ["capacitive", "continuation"]:
+                if isinstance(modification.value, str):
+                    converted_value = modification.value.lower() in ["true", "yes", "1", "on"]
+                else:
+                    converted_value = bool(modification.value)
+            
+            updates[modification.parameter] = converted_value
+            
+            param_msg = f"{modification.parameter} to {converted_value}"
+            if modification.parameter == "grid":
+                param_msg += f" (Grid system changed)"
+            elif modification.parameter == "bus_id":
+                param_msg += f" (Monitoring bus)"
+            reply_parts.append(param_msg)
+        
+        new_inputs = current_inputs.model_copy(update=updates)
+        
+
+        if len(reply_parts) == 1:
+            reply_content = f"Updated {reply_parts[0]}"
+        else:
+            reply_content = f"Updated {len(reply_parts)} parameters:\n" + "\n".join(f"• {part}" for part in reply_parts)
+        
+        reply = AIMessage(content=reply_content)
+        return {"messages": [reply], "inputs": new_inputs}
+        
+    except ValidationError as e:
+        error_details = []
+        for error in e.errors():
+            field = error.get('loc', ['unknown'])[0]
+            msg = error.get('msg', 'Invalid value')
+            error_details.append(f"{field}: {msg}")
+        
+        reply = AIMessage(content=f"Validation errors: {'; '.join(error_details)}")
+        return {"messages": [reply]}
+    except ValueError as e:
+        reply = AIMessage(content=f"Type conversion error: {str(e)}")
+        return {"messages": [reply]}
 
 def pv_curve_agent(state: State):
     print("Generating PV curve...")
@@ -158,11 +206,24 @@ def pv_curve_agent(state: State):
         max_scale=inputs.max_scale,
         power_factor=inputs.power_factor,
         voltage_limit=inputs.voltage_limit,
+        capacitive=inputs.capacitive,
+        continuation=inputs.continuation,
         save_path=inputs.save_path,
     )
 
     print("PV curve generated")
-    reply = AIMessage(content=f"PV curve generated and saved to {inputs.save_path}")
+    
+    # Enhanced response with key parameters
+    load_type = "capacitive" if inputs.capacitive else "inductive"
+    curve_type = "with continuation curve" if inputs.continuation else "upper branch only"
+    
+    reply_content = (
+        f"PV curve generated for {inputs.grid.upper()} system (Bus {inputs.bus_id})\n"
+        f"Load type: {load_type}, Power factor: {inputs.power_factor}\n"
+        f"Plot saved to {inputs.save_path} ({curve_type})"
+    )
+    
+    reply = AIMessage(content=reply_content)
     return {"messages": [reply], "results": results}
 
 # TODO: Add RAG, maybe combine with response agent somehow
