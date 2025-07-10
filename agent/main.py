@@ -63,19 +63,6 @@ class State(TypedDict):
 def classify_message(state: State):
     last_message = state["messages"][-1]
     
-    # Will automatically run PV curve analysis based on keywords instead of just classification
-    # TODO: Evaluate if this is a good heuristic as it could interfere with other questions/requests
-    content_lc = last_message.content.strip().lower()
-    run_triggers = [
-        "run",
-        "generate",
-        "create",
-    ]
-    for trig in run_triggers:
-        if content_lc == trig or (trig in content_lc and len(content_lc) <= 40):
-            print("Classifying input complete")
-            return {"message_type": "pv_curve"}
-
     classifier_llm = llm.with_structured_output(MessageClassifier)
 
     print("Classifying input...")
@@ -226,7 +213,6 @@ def pv_curve_agent(state: State):
     reply = AIMessage(content=reply_content)
     return {"messages": [reply], "results": results}
 
-# TODO: Add RAG, maybe combine with response agent somehow
 def analysis_agent(state: State):
     print("Analyzing PV curve results...")
     
@@ -235,17 +221,32 @@ def analysis_agent(state: State):
         reply = AIMessage(content="No PV curve results available for analysis.")
         return {"messages": [reply]}
     
+    inputs = state["inputs"]
+    analysis_query = (
+        f"PV curve voltage stability analysis nose point load margin "
+        f"voltage drop {inputs.grid} power system stability assessment "
+        f"power factor {inputs.power_factor} voltage collapse"
+    )
+    
+    print("Retrieving analysis context...")
+    context = retriever.invoke(analysis_query)
+    print("Analysis context retrieved")
+    
     messages = [
         {
             "role": "system",
-            "content": prompts["analysis_agent"]["system"].format(results=results)
+            "content": prompts["analysis_agent"]["system"].format(
+                context=context, 
+                results=results
+            )
         },
         {
             "role": "user",
-            "content": "Please analyze these PV curve results and provide insights."
+            "content": prompts["analysis_agent"]["user"]
         }
     ]
     
+    print("Generating analysis...")
     reply = llm.invoke(messages)
     print("Analysis complete")
     return {"messages": [reply]}

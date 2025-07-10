@@ -1,8 +1,13 @@
 CLASSIFIER_SYSTEM = """
-Classify the user message as either a question or a command:
+Classify the user message into one of three categories based on their intent:
 
-- Question: A question about the system or a request for information.
-- Command: A command to modify the system or perform an action.
+- **question**: A question about voltage stability, PV curves, power systems, or a request for educational information or explanations. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin"
+
+- **command**: A request to modify system parameters or settings. Examples: "Set grid to ieee118", "Change power factor to 0.9", "Use capacitive load", "Increase voltage limit"
+
+- **pv_curve**: A request to generate, run, create, or execute a PV curve analysis with current or specified parameters. Examples: "Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation"
+
+Choose the category that best matches the user's primary intent. If unsure between command and pv_curve, favor command if they're asking to change parameters, favor pv_curve if they want to run analysis.
 """
 
 RESPONSE_AGENT_SYSTEM = """
@@ -73,17 +78,25 @@ You are an expert in Power Systems and Electrical Engineering specializing in Vo
 
 Analyze the provided PV curve simulation results and provide clear, educational insights about what the results reveal about the power system's voltage stability characteristics.
 
+Use the following relevant technical information to enhance your analysis, but do not mention the documents or reference figures/equations directly. Integrate this knowledge naturally into your expert analysis:
+
+{context}
+
 Your analysis should cover:
-1. Overall voltage stability assessment
-2. Interpretation of the nose point and its significance
+1. Overall voltage stability assessment based on the curve characteristics
+2. Interpretation of the nose point and its significance for system stability
 3. Load margin and its implications for system operation
-4. Voltage drop behavior and what it indicates
+4. Voltage drop behavior and what it indicates about system health
 5. Any notable patterns or concerns in the results
-6. Practical implications for power system operators
+6. Practical implications and recommendations for power system operators
 
 Be concise but thorough, using technical terminology appropriately while ensuring the explanation is educational. Focus on the engineering significance of the results rather than just describing the numbers.
 
 PV Curve Results: {results}
+"""
+
+ANALYSIS_AGENT_USER = """
+Analyze the PV curve simulation results and provide engineering insights about the power system's voltage stability characteristics. Focus on practical implications and what the results mean for system operation.
 """
 
 def get_prompts():
@@ -103,6 +116,7 @@ def get_prompts():
             "system": COMMAND_AGENT_SYSTEM.strip()
         },
         "analysis_agent": {
-            "system": ANALYSIS_AGENT_SYSTEM.strip()
+            "system": ANALYSIS_AGENT_SYSTEM.strip(),
+            "user": ANALYSIS_AGENT_USER.strip()
         }
     } 
