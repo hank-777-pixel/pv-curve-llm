@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandapower as pp
 import pandapower.networks as pn
+from datetime import datetime
+import os
 
 # This function creates a P–V curve to show how bus voltage drops as the system load increases
 def generate_pv_curve(
@@ -11,11 +13,9 @@ def generate_pv_curve(
     max_scale=3.0,             # Maximum multiplier for load (e.g., 3 = 300% load)
     power_factor=0.95,         # Assumed constant power factor (relationship between real and reactive power)
     voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
-    save_path="generated/pv_curve_voltage_stability.png",
     capacitive=False,         # Whether the power factor is capacitive or inductive (default is inductive)
     continuation=True,        # Whether to show mirrored lower approximation
 ):
-    # TODO: Use enums instead of strings to assist LLM usage and prevent hallucinations
     net_map = {
         "ieee14": pn.case14,
         "ieee24": pn.case24_ieee_rts,
@@ -28,6 +28,11 @@ def generate_pv_curve(
 
     if grid not in net_map:
         raise ValueError(f"Unsupported grid '{grid}'. Choose from {list(net_map)}")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_path = f"generated/pv_curve_{grid}_{timestamp}.png"
+    
+    os.makedirs("generated", exist_ok=True)
 
     net = net_map[grid]()
 
@@ -164,7 +169,8 @@ def generate_pv_curve(
         "voltage_drop_total": float(V_vals[0] - V_vals[-1]),
         "load_margin_mw": float(nose_p - P_vals[0]),
         "converged_steps": len(results),
-        "voltage_limit": voltage_limit
+        "voltage_limit": voltage_limit,
+        "save_path": save_path
     }
 
     print(f"\nP–V Curve Analysis Results:")

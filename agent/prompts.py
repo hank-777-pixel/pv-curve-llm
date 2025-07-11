@@ -41,7 +41,6 @@ Available Parameters:
 - voltage_limit: Minimum voltage threshold (0.0-1.0)
 - capacitive: Load type - true=capacitive load, false=inductive load (default: false for inductive)
 - continuation: Curve display - true=show continuous/mirrored curve, false=upper branch only (default: true for continuous)
-- save_path: Output file path (string)
 
 Rules:
 1. Extract ALL parameters the user requests to change in one response

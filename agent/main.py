@@ -37,7 +37,6 @@ class Inputs(BaseModel):
     voltage_limit: float = Field(default=0.4, gt=0, le=1.0)  # Voltage threshold to stop
     capacitive: bool = Field(default=False)  # Whether load is capacitive or inductive
     continuation: bool = Field(default=True)  # Whether to show mirrored curve
-    save_path: str = "generated/pv_curve_voltage_stability.png"  # Output plot path
 
 class MessageClassifier(BaseModel):
     message_type: Literal["question", "command", "pv_curve"] = Field(
@@ -45,7 +44,7 @@ class MessageClassifier(BaseModel):
         description="Classify if the message requires a tool call/command, a PV-curve generation/run, or a question/request that requires a knowledge response."
     )
 
-InputParameter = Literal["grid", "bus_id", "step_size", "max_scale", "power_factor", "voltage_limit", "capacitive", "continuation", "save_path"]
+InputParameter = Literal["grid", "bus_id", "step_size", "max_scale", "power_factor", "voltage_limit", "capacitive", "continuation"]
 
 class ParameterModification(BaseModel):
     parameter: InputParameter = Field(..., description="The parameter to modify")
@@ -195,7 +194,6 @@ def pv_curve_agent(state: State):
         voltage_limit=inputs.voltage_limit,
         capacitive=inputs.capacitive,
         continuation=inputs.continuation,
-        save_path=inputs.save_path,
     )
 
     print("PV curve generated")
@@ -207,7 +205,7 @@ def pv_curve_agent(state: State):
     reply_content = (
         f"PV curve generated for {inputs.grid.upper()} system (Bus {inputs.bus_id})\n"
         f"Load type: {load_type}, Power factor: {inputs.power_factor}\n"
-        f"Plot saved to {inputs.save_path} ({curve_type})"
+        f"Plot saved to {results['save_path']} ({curve_type})"
     )
     
     reply = AIMessage(content=reply_content)
