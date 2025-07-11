@@ -235,14 +235,14 @@ def analysis_agent(state: State):
     messages = [
         {
             "role": "system",
-            "content": prompts["analysis_agent"]["system"].format(
-                context=context, 
-                results=results
-            )
+            "content": prompts["analysis_agent"]["system"].format(context=context)
         },
         {
             "role": "user",
-            "content": prompts["analysis_agent"]["user"]
+            "content": prompts["analysis_agent"]["user"].format(
+                results=results,
+                grid_system=results['grid_system'].upper()
+            )
         }
     ]
     

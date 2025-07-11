@@ -90,13 +90,23 @@ Your analysis should cover:
 5. Any notable patterns or concerns in the results
 6. Practical implications and recommendations for power system operators
 
-Be concise but thorough, using technical terminology appropriately while ensuring the explanation is educational. Focus on the engineering significance of the results rather than just describing the numbers.
-
-PV Curve Results: {results}
+Be concise but thorough, using technical terminology appropriately while ensuring the explanation is educational. Reference specific numerical values from the simulation results to make your analysis concrete and actionable.
 """
 
 ANALYSIS_AGENT_USER = """
 Analyze the PV curve simulation results and provide engineering insights about the power system's voltage stability characteristics. Focus on practical implications and what the results mean for system operation.
+
+Please reference specific numerical values from the following simulation results in your analysis:
+
+{results}
+
+Key metrics to reference:
+- Grid system: {grid_system}
+- Nose point load and voltage values
+- Load margin (MW and percentage increase possible)
+- Initial vs final conditions
+- Total voltage drop and percentage decrease
+- Number of converged simulation steps
 """
 
 def get_prompts():

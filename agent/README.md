@@ -9,6 +9,7 @@ AI Agent which creates PV curves or answers Voltage Stability related requests u
 - [ ] Create visual map of nodes
 - [ ] Consider instead of just answering questions about PV-curves generally to fetch guidelines,
 explain parameters, etc. (Add more nodes to LangGraph)
+- [ ] Multiple DBs/RAG sources depending on usage (Explanation, Analysis, etc.)
 
 ## Installation & Run
 Run Agent locally:
