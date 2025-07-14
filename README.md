@@ -11,17 +11,19 @@ Use natural language to generate PV Curves for Voltage Stability Analysis via an
 # TODO
 - [ ] Improve `/agent` documentation
 - [ ] Improve prompts in `agent/prompts.json`
-- [ ] Review and improve PV Curve inputs in `agent/inputs.json`
-- [ ] Create function to generate PV Curves using inputs from `agent/inputs.json` (See `agents/pv-curve`)
-- [ ] Add documentation/graph for agentic workflow
-- [ ] Add LangGraph node to generate PV curve
-- [ ] Add LangGraph node to review PV curve and process user feedback
+- [X] Create function to generate PV Curves using inputs from `agent/inputs.json` (See `agents/pv_curve`)
+- [X] Add documentation/graph for agentic workflow
+- [X] Add LangGraph node to generate PV curve
+- [X] Add LangGraph node to review PV curve and process user feedback
 - [ ] Research/review legality of the data stored in `agent/data` in Open-Source repo. More info in `agent/data/README.md` 
-- [ ] Add API implementation of `/agent` run on `server/server.py` for UI interaction
+- [ ] Add API implementation of `/agent` that is run on `server/server.py` for UI interaction
 - [ ] UI documentation
+- [ ] Consolidate documentation in main `README.md`
+- [ ] Experiment with HPC for improved LLM performance
+- [ ] Add simpler script to download and run project
 
 # Installation & Run
-TODO
+Currently only `/agent/main.py` is ready for local testing. See `/agent/README.md` for more information.
 
 # License
 This repository is licensed under the [MIT License](./LICENSE), unless specified otherwise in subdirectories.

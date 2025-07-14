@@ -26,6 +26,7 @@ First, the user is queried for input, where a classification node determines whe
 - [ ] Multiple DBs/RAG sources depending on usage (Explanation, Analysis, etc.)
 - [ ] Add Error handling/analysis node
 - [ ] Make inputs less involved and use more natural language, where the AI can determine the parameter values based on RAG context
+- [ ] Review copyright information and add vector DB to git
 
 ## Installation & Run
 
