@@ -21,6 +21,8 @@ Use natural language to generate PV Curves for Voltage Stability Analysis via an
 - [ ] Consolidate documentation in main `README.md`
 - [ ] Experiment with HPC for improved LLM performance
 - [ ] Add simpler script to download and run project
+- [ ] Add documentation to explain file structure/project architecture
+- [ ] Create Demo
 
 # Installation & Run
 Currently only `/agent/main.py` is ready for local testing. See `/agent/README.md` for more information.
