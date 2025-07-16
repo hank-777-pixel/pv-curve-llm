@@ -16,6 +16,7 @@ load_dotenv()
 prompts = get_prompts()
 
 # See Modelfile for instructions on how to use a custom model
+# TODO: Experiment with deepseek-r1
 llm = ChatOllama(
     model=os.getenv("OLLAMA_MODEL") or "llama3.1:8b",
     base_url="http://localhost:11434"
@@ -64,6 +65,7 @@ class State(TypedDict):
     message_type: str | None
     inputs: Inputs
     results: dict | None
+    error_info: dict | None
 
 def classify_message(state: State):
     last_message = state["messages"][-1]
@@ -167,8 +169,14 @@ def parameter_agent(state: State):
         ])
         print("Inputs modified")
     except Exception as e:
-        reply = AIMessage(content=f"Error parsing command: {str(e)}. Please specify valid parameters and values.")
-        return {"messages": [reply]}
+        error_info = {
+            "error_type": "parameter_parsing",
+            "error_message": str(e),
+            "user_input": last_message.content,
+            "current_inputs": current_inputs.model_dump(),
+            "context": "Failed to parse parameter modification request"
+        }
+        return {"error_info": error_info}
     
     try:
         updates = {}
@@ -213,41 +221,64 @@ def parameter_agent(state: State):
             msg = error.get('msg', 'Invalid value')
             error_details.append(f"{field}: {msg}")
         
-        reply = AIMessage(content=f"Validation errors: {'; '.join(error_details)}")
-        return {"messages": [reply]}
+        error_info = {
+            "error_type": "validation_error",
+            "error_message": '; '.join(error_details),
+            "user_input": last_message.content,
+            "current_inputs": current_inputs.model_dump(),
+            "context": "Parameter validation failed",
+            "validation_errors": e.errors()
+        }
+        return {"error_info": error_info}
     except ValueError as e:
-        reply = AIMessage(content=f"Type conversion error: {str(e)}")
-        return {"messages": [reply]}
+        error_info = {
+            "error_type": "type_conversion",
+            "error_message": str(e),
+            "user_input": last_message.content,
+            "current_inputs": current_inputs.model_dump(),
+            "context": "Failed to convert parameter value to correct type"
+        }
+        return {"error_info": error_info}
 
 def generation_agent(state: State):
     print("Generating PV curve...")
 
     inputs = state["inputs"]
 
-    results = generate_pv_curve(
-        grid=inputs.grid,
-        target_bus_idx=inputs.bus_id,
-        step_size=inputs.step_size,
-        max_scale=inputs.max_scale,
-        power_factor=inputs.power_factor,
-        voltage_limit=inputs.voltage_limit,
-        capacitive=inputs.capacitive,
-        continuation=inputs.continuation,
-    )
+    try:
+        results = generate_pv_curve(
+            grid=inputs.grid,
+            target_bus_idx=inputs.bus_id,
+            step_size=inputs.step_size,
+            max_scale=inputs.max_scale,
+            power_factor=inputs.power_factor,
+            voltage_limit=inputs.voltage_limit,
+            capacitive=inputs.capacitive,
+            continuation=inputs.continuation,
+        )
 
-    print("PV curve generated")
+        print("PV curve generated")
+        
+        load_type = "capacitive" if inputs.capacitive else "inductive"
+        curve_type = "with continuation curve" if inputs.continuation else "upper branch only"
+        
+        reply_content = (
+            f"PV curve generated for {inputs.grid.upper()} system (Bus {inputs.bus_id})\n"
+            f"Load type: {load_type}, Power factor: {inputs.power_factor}\n"
+            f"Plot saved to {results['save_path']} ({curve_type})"
+        )
+        
+        reply = AIMessage(content=reply_content)
+        return {"messages": [reply], "results": results}
     
-    load_type = "capacitive" if inputs.capacitive else "inductive"
-    curve_type = "with continuation curve" if inputs.continuation else "upper branch only"
-    
-    reply_content = (
-        f"PV curve generated for {inputs.grid.upper()} system (Bus {inputs.bus_id})\n"
-        f"Load type: {load_type}, Power factor: {inputs.power_factor}\n"
-        f"Plot saved to {results['save_path']} ({curve_type})"
-    )
-    
-    reply = AIMessage(content=reply_content)
-    return {"messages": [reply], "results": results}
+    except Exception as e:
+        error_info = {
+            "error_type": "simulation_error",
+            "error_message": str(e),
+            "current_inputs": inputs.model_dump(),
+            "context": "PV curve simulation failed"
+        }
+        return {"error_info": error_info}
 
 def analysis_agent(state: State):
     print("Analyzing PV curve results...")
@@ -287,6 +318,33 @@ def analysis_agent(state: State):
     print("Analysis complete")
     return {"messages": [reply]}
 
+def error_handler_agent(state: State):
+    print("Analyzing error...")
+    
+    error_info = state.get("error_info", {})
+    
+    # Format error context for the LLM
+    error_context = f"""
+Error Type: {error_info.get('error_type', 'unknown')}
+Error Message: {error_info.get('error_message', 'No message available')}
+Context: {error_info.get('context', 'No context available')}
+
+Current Inputs: {error_info.get('current_inputs', 'Not available')}
+
+User Input: {error_info.get('user_input', 'Not available')}
+
+Additional Info: {error_info.get('validation_errors', 'None')}
+"""
+    
+    messages = [
+        {"role": "system", "content": prompts["error_handler"]["system"]},
+        {"role": "user", "content": f"Please analyze this error and provide a helpful explanation:\n\n{error_context}"}
+    ]
+    
+    reply = llm.invoke(messages)
+    print("Error analysis complete")
+    return {"messages": [reply]}
+
 graph_builder = StateGraph(State)
 
 graph_builder.add_node("classifier", classify_message)
@@ -297,6 +355,7 @@ graph_builder.add_node("question_parameter", question_parameter_agent)
 graph_builder.add_node("parameter", parameter_agent)
 graph_builder.add_node("generation", generation_agent)
 graph_builder.add_node("analysis", analysis_agent)
+graph_builder.add_node("error_handler", error_handler_agent)
 
 graph_builder.add_edge(START, "classifier")
 graph_builder.add_edge("classifier", "router")
@@ -322,9 +381,27 @@ graph_builder.add_conditional_edges(
 
 graph_builder.add_edge("question_general", END)
 graph_builder.add_edge("question_parameter", END)
-graph_builder.add_edge("parameter", END)
 graph_builder.add_edge("generation", "analysis")
 graph_builder.add_edge("analysis", END)
+graph_builder.add_edge("error_handler", END)
+
+graph_builder.add_conditional_edges(
+    "parameter",
+    lambda state: "error_handler" if state.get("error_info") else "END",
+    {
+        "error_handler": "error_handler",
+        "END": END
+    }
+)
+
+graph_builder.add_conditional_edges(
+    "generation",
+    lambda state: "error_handler" if state.get("error_info") else "analysis",
+    {
+        "error_handler": "error_handler",
+        "analysis": "analysis"
+    }
+)
 
 graph = graph_builder.compile()
 
@@ -358,16 +435,17 @@ def format_inputs_display(inputs: Inputs) -> str:
     return "\n".join(formatted_lines)
 
 def run_agent():
+    print("Welcome to the PV Curve Agent! Type 'quit' or 'q' to exit.")
     print(f"Using model: {llm.model}")
 
-    state = {"messages": [], "message_type": None, "inputs": Inputs(), "results": None}
+    state = {"messages": [], "message_type": None, "inputs": Inputs(), "results": None, "error_info": None}
 
     while True:
         print(f"\nCurrent inputs:\n{format_inputs_display(state['inputs'])}")
         
         user_input = input("\nMessage: ")
-        if user_input == "exit":
-            print("Exiting...")
+        if user_input.strip().lower() in ["quit", "q"]:
+            print("Quitting...")
             break
 
         state["messages"] = state.get("messages", []) + [
