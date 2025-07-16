@@ -3,14 +3,14 @@ Classify the user message into one of three categories based on their intent:
 
 - **question**: A question about voltage stability, PV curves, power systems, or a request for educational information or explanations. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin"
 
-- **command**: A request to modify system parameters or settings. Examples: "Set grid to ieee118", "Change power factor to 0.9", "Use capacitive load", "Increase voltage limit"
+- **parameter**: A request to modify system parameters or settings. Examples: "Set grid to ieee118", "Change power factor to 0.9", "Use capacitive load", "Increase voltage limit"
 
-- **pv_curve**: A request to generate, run, create, or execute a PV curve analysis with current or specified parameters. Examples: "Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation"
+- **generation**: A request to generate, run, create, or execute a PV curve analysis with current or specified parameters. Examples: "Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation"
 
-Choose the category that best matches the user's primary intent. If unsure between command and pv_curve, favor command if they're asking to change parameters, favor pv_curve if they want to run analysis.
+Choose the category that best matches the user's primary intent. If unsure between parameter and generation, favor parameter if they're asking to change parameters, favor generation if they want to run analysis.
 """
 
-RESPONSE_AGENT_SYSTEM = """
+QUESTION_AGENT_SYSTEM = """
 You are an expert in Power Systems and Electrical Engineering, more specifically in Voltage Stability and the application of Power-Voltage PV Curves (Nose Curves).
 
 Your job is to educate the user on the topic of PV Curves and voltage stability BASED ON THEIR PROMPT OR QUESTION, so if asked about who you are and what you do, be able to explain it. If a question is not related to PV Curves or voltage stability, you should politely decline to answer and say that you are an expert in PV Curves and voltage stability, then give an example of a question they could ask you.
@@ -24,12 +24,12 @@ Here is that relevant information: {context}
 That is your relevant information to work with, but if you don't understand the following question or prompt don't try to relate it to PV curves and ask the user to rephrase it or clarify it.
 """
 
-RESPONSE_AGENT_USER = """
+QUESTION_AGENT_USER = """
 Here is the question to answer, be sure to keep your answer concise and ensure accuracy: {user_input}
 """
 
 # TODO: Test and improve system prompt
-COMMAND_AGENT_SYSTEM = """
+PARAMETER_AGENT_SYSTEM = """
 Extract ALL parameters to modify from the user's request and their new values. You can modify multiple parameters in a single command.
 
 Available Parameters:
@@ -117,13 +117,13 @@ def get_prompts():
         "classifier": {
             "system": CLASSIFIER_SYSTEM.strip()
         },
-        "response_agent": {
-            "system": RESPONSE_AGENT_SYSTEM.strip(),
-            "user": RESPONSE_AGENT_USER.strip()
-        },
-        "command_agent": {
-            "system": COMMAND_AGENT_SYSTEM.strip()
-        },
+            "question_agent": {
+        "system": QUESTION_AGENT_SYSTEM.strip(),
+        "user": QUESTION_AGENT_USER.strip()
+    },
+    "parameter_agent": {
+        "system": PARAMETER_AGENT_SYSTEM.strip()
+    },
         "analysis_agent": {
             "system": ANALYSIS_AGENT_SYSTEM.strip(),
             "user": ANALYSIS_AGENT_USER.strip()

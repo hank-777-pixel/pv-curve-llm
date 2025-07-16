@@ -39,9 +39,9 @@ class Inputs(BaseModel):
     continuation: bool = Field(default=True)  # Whether to show mirrored curve
 
 class MessageClassifier(BaseModel):
-    message_type: Literal["question", "command", "pv_curve"] = Field(
+    message_type: Literal["question", "parameter", "generation"] = Field(
         ...,
-        description="Classify if the message requires a tool call/command, a PV-curve generation/run, or a question/request that requires a knowledge response."
+        description="Classify if the message requires a parameter modification, a PV-curve generation/run, or a question/request that requires a knowledge response."
     )
 
 InputParameter = Literal["grid", "bus_id", "step_size", "max_scale", "power_factor", "voltage_limit", "capacitive", "continuation"]
@@ -82,14 +82,14 @@ def classify_message(state: State):
 def router(state: State):
     message_type = state.get("message_type", "question")
 
-    if message_type == "command":
-        return {"next": "command"}
-    if message_type == "pv_curve":
-        return {"next": "pv_curve"}
+    if message_type == "parameter":
+        return {"next": "parameter"}
+    if message_type == "generation":
+        return {"next": "generation"}
     
-    return {"next": "response"}
+    return {"next": "question"}
 
-def response_agent(state: State):
+def question_agent(state: State):
     last_message = state["messages"][-1]
 
     print("Retrieving context...")
@@ -98,9 +98,9 @@ def response_agent(state: State):
 
     messages = [
         {"role": "system",
-         "content": prompts["response_agent"]["system"].format(context=context)},
+                 "content": prompts["question_agent"]["system"].format(context=context)},
         {"role": "user", 
-         "content": prompts["response_agent"]["user"].format(user_input=last_message.content)}
+        "content": prompts["question_agent"]["user"].format(user_input=last_message.content)}
     ]
 
     print("Generating response...")
@@ -108,7 +108,7 @@ def response_agent(state: State):
     print("Response generated")
     return {"messages": [reply]}
 
-def command_agent(state: State):
+def parameter_agent(state: State):
     last_message = state["messages"][-1]
     modifier_llm = llm.with_structured_output(InputModifier)
     
@@ -119,7 +119,7 @@ def command_agent(state: State):
         result = modifier_llm.invoke([
             {
                 "role": "system",
-                "content": prompts["command_agent"]["system"].format(current_inputs=current_inputs)
+                "content": prompts["parameter_agent"]["system"].format(current_inputs=current_inputs)
             },
             {
                 "role": "user",
@@ -180,7 +180,7 @@ def command_agent(state: State):
         reply = AIMessage(content=f"Type conversion error: {str(e)}")
         return {"messages": [reply]}
 
-def pv_curve_agent(state: State):
+def generation_agent(state: State):
     print("Generating PV curve...")
 
     inputs = state["inputs"]
@@ -253,9 +253,9 @@ graph_builder = StateGraph(State)
 
 graph_builder.add_node("classifier", classify_message)
 graph_builder.add_node("router", router)
-graph_builder.add_node("response", response_agent)
-graph_builder.add_node("command", command_agent)
-graph_builder.add_node("pv_curve", pv_curve_agent)
+graph_builder.add_node("question", question_agent)
+graph_builder.add_node("parameter", parameter_agent)
+graph_builder.add_node("generation", generation_agent)
 graph_builder.add_node("analysis", analysis_agent)
 
 graph_builder.add_edge(START, "classifier")
@@ -265,18 +265,47 @@ graph_builder.add_conditional_edges(
     "router",
     lambda state: state.get("next"),
     {
-        "response": "response",
-        "command": "command",
-        "pv_curve": "pv_curve"
+        "question": "question",
+        "parameter": "parameter",
+        "generation": "generation"
     }
 )
 
-graph_builder.add_edge("response", END)
-graph_builder.add_edge("command", END)
-graph_builder.add_edge("pv_curve", "analysis")
+graph_builder.add_edge("question", END)
+graph_builder.add_edge("parameter", END)
+graph_builder.add_edge("generation", "analysis")
 graph_builder.add_edge("analysis", END)
 
 graph = graph_builder.compile()
+
+def format_inputs_display(inputs: Inputs) -> str:
+    param_labels = {
+        "grid": "Grid system",
+        "bus_id": "Bus to monitor voltage",
+        "step_size": "Load increment step size",
+        "max_scale": "Maximum load multiplier",
+        "power_factor": "Power factor",
+        "voltage_limit": "Voltage threshold to stop",
+        "capacitive": "Load type",
+        "continuation": "Curve type"
+    }
+    
+    formatted_lines = []
+    for param, value in inputs.model_dump().items():
+        label = param_labels.get(param, param)
+        
+        if param == "capacitive":
+            display_value = "Capacitive" if value else "Inductive"
+        elif param == "continuation":
+            display_value = "Continuous" if value else "Stops at nose point"
+        elif param == "grid":
+            display_value = value.upper()
+        else:
+            display_value = str(value)
+            
+        formatted_lines.append(f"{label}: {display_value}")
+    
+    return "\n".join(formatted_lines)
 
 def run_agent():
     print(f"Using model: {llm.model}")
@@ -284,9 +313,7 @@ def run_agent():
     state = {"messages": [], "message_type": None, "inputs": Inputs(), "results": None}
 
     while True:
-        print("\nCurrent inputs:")
-        for param, value in state["inputs"].model_dump().items():
-            print(f"{param}: {value}")
+        print(f"\nCurrent inputs:\n{format_inputs_display(state['inputs'])}")
         
         user_input = input("\nMessage: ")
         if user_input == "exit":

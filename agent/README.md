@@ -27,6 +27,8 @@ First, the user is queried for input, where a classification node determines whe
 - [ ] Add Error handling/analysis node
 - [ ] Make inputs less involved and use more natural language, where the AI can determine the parameter values based on RAG context
 - [ ] Review copyright information and add vector DB to git
+- [ ] Could split question node to classify type of question. Could be related to what an input means, could be general about curves, etc.
+- [ ] Add web crawling node to agent for more advanced questions
 
 ## Installation & Run
 
