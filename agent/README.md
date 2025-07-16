@@ -20,15 +20,16 @@ First, the user is queried for input, where a classification node determines whe
 - [ ] `/pv_curve`
 - [X] Improve `Modelfile`
 - [ ] Improve documentation
-- [ ] Improve prompting `prompts.py` and classification model
+- [X] Improve prompting `prompts.py` and classification model
 - [X] Create visual map of nodes
 - [ ] Consider instead of just answering questions about PV-curves generally to fetch guidelines, explain parameters, etc. (Add more nodes to LangGraph)
 - [ ] Multiple DBs/RAG sources depending on usage (Explanation, Analysis, etc.)
 - [ ] Add Error handling/analysis node
-- [ ] Make inputs less involved and use more natural language, where the AI can determine the parameter values based on RAG context
+- [X] Make inputs less involved and use more natural language, where the AI can determine the parameter values based on RAG context
 - [ ] Review copyright information and add vector DB to git
-- [ ] Could split question node to classify type of question. Could be related to what an input means, could be general about curves, etc.
+- [X] Could split question node to classify type of question. Could be related to what an input means, could be general about curves, etc.
 - [ ] Add web crawling node to agent for more advanced questions
+- [ ] Update `workflow.png` to reflect changes to nodes/structure
 
 ## Installation & Run
 

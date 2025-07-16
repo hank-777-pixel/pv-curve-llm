@@ -44,6 +44,12 @@ class MessageClassifier(BaseModel):
         description="Classify if the message requires a parameter modification, a PV-curve generation/run, or a question/request that requires a knowledge response."
     )
 
+class QuestionClassifier(BaseModel):
+    question_type: Literal["question_general", "question_parameter"] = Field(
+        ...,
+        description="Classify if the question is a general voltage stability/PV curve question or specifically about parameter meanings/functionality."
+    )
+
 InputParameter = Literal["grid", "bus_id", "step_size", "max_scale", "power_factor", "voltage_limit", "capacitive", "continuation"]
 
 class ParameterModification(BaseModel):
@@ -91,6 +97,26 @@ def router(state: State):
 
 def question_agent(state: State):
     last_message = state["messages"][-1]
+    
+    classifier_llm = llm.with_structured_output(QuestionClassifier)
+
+    print("Classifying question...")
+    result = classifier_llm.invoke([
+        {
+            "role": "system",
+            "content": prompts["question_classifier"]["system"]
+        },
+        {
+            "role": "user",
+            "content": last_message.content
+        }
+    ])
+    print("Question classification complete")
+
+    return {"message_type": result.question_type}
+
+def question_general_agent(state: State):
+    last_message = state["messages"][-1]
 
     print("Retrieving context...")
     context = retriever.invoke(last_message.content)
@@ -98,14 +124,27 @@ def question_agent(state: State):
 
     messages = [
         {"role": "system",
-                 "content": prompts["question_agent"]["system"].format(context=context)},
+                 "content": prompts["question_general_agent"]["system"].format(context=context)},
         {"role": "user", 
-        "content": prompts["question_agent"]["user"].format(user_input=last_message.content)}
+        "content": prompts["question_general_agent"]["user"].format(user_input=last_message.content)}
     ]
 
     print("Generating response...")
     reply = llm.invoke(messages)
     print("Response generated")
+    return {"messages": [reply]}
+
+def question_parameter_agent(state: State):
+    last_message = state["messages"][-1]
+
+    print("Answering parameter question...")
+    messages = [
+        {"role": "system", "content": prompts["question_parameter_agent"]["system"]},
+        {"role": "user", "content": last_message.content}
+    ]
+
+    reply = llm.invoke(messages)
+    print("Parameter question answered")
     return {"messages": [reply]}
 
 def parameter_agent(state: State):
@@ -198,7 +237,6 @@ def generation_agent(state: State):
 
     print("PV curve generated")
     
-    # Enhanced response with key parameters
     load_type = "capacitive" if inputs.capacitive else "inductive"
     curve_type = "with continuation curve" if inputs.continuation else "upper branch only"
     
@@ -254,6 +292,8 @@ graph_builder = StateGraph(State)
 graph_builder.add_node("classifier", classify_message)
 graph_builder.add_node("router", router)
 graph_builder.add_node("question", question_agent)
+graph_builder.add_node("question_general", question_general_agent)
+graph_builder.add_node("question_parameter", question_parameter_agent)
 graph_builder.add_node("parameter", parameter_agent)
 graph_builder.add_node("generation", generation_agent)
 graph_builder.add_node("analysis", analysis_agent)
@@ -271,7 +311,17 @@ graph_builder.add_conditional_edges(
     }
 )
 
-graph_builder.add_edge("question", END)
+graph_builder.add_conditional_edges(
+    "question",
+    lambda state: state.get("message_type"),
+    {
+        "question_general": "question_general",
+        "question_parameter": "question_parameter"
+    }
+)
+
+graph_builder.add_edge("question_general", END)
+graph_builder.add_edge("question_parameter", END)
 graph_builder.add_edge("parameter", END)
 graph_builder.add_edge("generation", "analysis")
 graph_builder.add_edge("analysis", END)
