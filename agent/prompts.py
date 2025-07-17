@@ -109,6 +109,12 @@ Rules:
 3. Validate values are within acceptable ranges
 4. For boolean parameters, accept true/false, yes/no, or 1/0
 
+Important for anything related to capacitive, inductive, continuous, etc:
+If the user asks to make it capcative, set capacative=true,
+if the user asks to make it inductive, set capacative=false,
+if the user asks to show the continuous curve, set continuation=true,
+if the user asks to show the upper branch only, set continuation=false
+
 Current inputs: {current_inputs}
 
 Single Parameter Examples:

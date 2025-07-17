@@ -6,10 +6,6 @@ AI Agent which creates PV curves or answers Voltage Stability related requests u
 
 ![Agentic Workflow Diagram](workflow.png)
 
-### Brief summary of workflow:
-
-First, the user is queried for input, where a classification node determines whether the response is a question, input modification, or pv curve generation. Upon LLM determination from the context, the router node determines which node to execute next and passes the context. If routed to an input modification, the LLM determines the inputs to modify and the values from the message and modifies the input(s) accordingly, ending the response and leading to a new input request. If a general question or request is asked, the LLM will be given RAG context on PV Curves and Voltage Stability to generate a response. If a PV curve is signaled to be generated, then `pv_curve.py` will be ran and the results will be passed into the Analysis node, using RAG context to generate a response about the data. This is an endless loop until cancelled.
-
 ### Potential improvements:
 
 - Separate RAG agents to different nodes with smaller vector databases (i.e. analysis database, general voltage stability question database, questions about agent/repo database, etc.)

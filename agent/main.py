@@ -18,7 +18,7 @@ prompts = get_prompts()
 # See Modelfile for instructions on how to use a custom model
 # TODO: Experiment with deepseek-r1
 llm = ChatOllama(
-    model=os.getenv("OLLAMA_MODEL") or "llama3.1:8b",
+    model="deepseek-r1:7b" or os.getenv("OLLAMA_MODEL") or "llama3.1:8b",
     base_url="http://localhost:11434"
 )
 

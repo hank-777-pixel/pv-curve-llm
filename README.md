@@ -15,7 +15,7 @@ Use natural language to generate PV Curves for Voltage Stability Analysis via an
 - [X] Add documentation/graph for agentic workflow
 - [X] Add LangGraph node to generate PV curve
 - [X] Add LangGraph node to review PV curve and process user feedback
-- [ ] Research/review legality of the data stored in `agent/data` in Open-Source repo. More info in `agent/data/README.md` 
+- [X] Research/review legality of the data stored in `agent/data` in Open-Source repo. More info in `agent/data/README.md` 
 - [ ] Add API implementation of `/agent` that is run on `server/server.py` for UI interaction
 - [ ] UI documentation
 - [ ] Consolidate documentation in main `README.md`
