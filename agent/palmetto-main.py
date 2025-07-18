@@ -14,8 +14,8 @@ import os
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 
-# Load DeepSeek 32B across 4 GPUs using device_map="auto"
-model_name = os.getenv("HF_MODEL", "deepseek-ai/deepseek-llm-r1-32b")
+# Load DeepSeek-R1 across multiple GPUs using device_map="auto"
+model_name = os.getenv("HF_MODEL", "deepseek-ai/DeepSeek-R1")
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
