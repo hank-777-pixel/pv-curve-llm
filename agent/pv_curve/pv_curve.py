@@ -188,6 +188,11 @@ def generate_pv_curve(
     return results_summary
 
 if __name__ == "__main__":
+    """
+    Runs locally using the following parameters.
+
+    Modify the parameters to your liking, then run `python pv_curve.py` in this directory.
+    """
     generate_pv_curve(
         grid="ieee39",
         target_bus_idx=5,

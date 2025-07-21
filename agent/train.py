@@ -1,6 +1,9 @@
 """
-This script is used to train the vector database stored in ./vector_db that serves the RAG agent.
-Currently the data used to train the LLM in /data is excluded from Git temporarily.
+This script is used to train the vector database stored in `/vector_db` that serves the RAG agent.
+Currently the raw data used to train the LLM in `/data` is excluded from the open-source repository.
+
+To upload custom data to the vector database, see `agent/data/README.md` for formatting requirements.
+After including data in `/data`, run this script to update the vector database.
 """
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma

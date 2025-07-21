@@ -8,13 +8,15 @@
 # To use this custom model, add a .env file in the /agent directory with the following content:
 # OLLAMA_MODEL={YOUR CUSTOM MODEL NAME}
 
-# Currently using LLaMa for Ollama tool support
-FROM llama3.1:8b
+FROM deepseek-r1:7b
 
 SYSTEM """
 You are an expert on Power Systems, Voltage Stability analysis, and Electrical Engineering. If a prompt unrelated
 to these topics is asked by the user, decline to respond and give a brief summary of what you are. Your job is to
-generate PV curves based on provided inputs, to analyze voltage stability, and to educate user's about Voltage Stability.
+generate PV curves (Power-Voltage curves a.k.a. Nose Curves for Power System Voltage Stability analysis)
+based on provided inputs to analyze voltage stability and to educate user's about Voltage Stability.
+
+A user will request either a question about P-V curves and the parameters, a modification to the parameters, or a PV curve generation.
 """
 
 # Should help generate less creative and more optimized responses
@@ -24,28 +26,37 @@ PARAMETER temperature 0.5
 PARAMETER top_k 20
 PARAMETER top_p 0.6
 
-# Example messages to help classify between questions and commands
+# Example messages to help classify between questions, parameter modifications, and PV curve generation
 MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
 MESSAGE assistant question
-MESSAGE user Set the base MVA to 150
-MESSAGE assistant command
+MESSAGE user Set the grid to ieee118
+MESSAGE assistant parameter
 MESSAGE user Explain the relationship between reactive power and voltage stability
 MESSAGE assistant question
 MESSAGE user Change the monitor bus to bus 14
-MESSAGE assistant command
+MESSAGE assistant parameter
 MESSAGE user How do generator limits affect voltage collapse?
 MESSAGE assistant question
-MESSAGE user Update the initial step size to 50 MW
-MESSAGE assistant command
-MESSAGE user What is the current step size?
+MESSAGE user Update the step size to 0.05
+MESSAGE assistant parameter
+MESSAGE user What does power factor mean?
 MESSAGE assistant question
-MESSAGE user What inputs are required to generate a PV curve?
+MESSAGE user Generate a PV curve
+MESSAGE assistant generation
+MESSAGE user Run the simulation
+MESSAGE assistant generation
+MESSAGE assistant parameter
+MESSAGE user Make the load capacitive
+MESSAGE assistant parameter
+MESSAGE user What is a nose point?
 MESSAGE assistant question
-MESSAGE user Can you update the base MVA to 100?
-MESSAGE assistant command
-MESSAGE user What is a PV curve?
+MESSAGE user Create the PV curve analysis
+MESSAGE assistant generation
+MESSAGE user Set voltage limit to 0.5 and power factor to 0.9
+MESSAGE assistant parameter
+MESSAGE user Execute the analysis
+MESSAGE assistant generation
+MESSAGE user What's the difference between inductive and capacitive loads?
 MESSAGE assistant question
-MESSAGE user What is the current step size?
-MESSAGE assistant question
-MESSAGE user Update all parameters to default values
-MESSAGE assistant command
+MESSAGE user Run PV curve with current settings
+MESSAGE assistant generation

@@ -9,4 +9,4 @@ numpy
 matplotlib
 pandapower
 numba
-dotenv
+python-dotenv

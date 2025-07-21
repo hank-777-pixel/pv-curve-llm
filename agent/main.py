@@ -5,9 +5,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from typing_extensions import TypedDict, Annotated, Literal
 from typing import Union, List
-from vector import retriever as _make_retriever
-from prompts import get_prompts
-from pv_curve.pv_curve import generate_pv_curve
+from .vector import retriever as _make_retriever
+from .prompts import get_prompts
+from .pv_curve.pv_curve import generate_pv_curve
 from dotenv import load_dotenv
 import os
 
@@ -18,7 +18,7 @@ prompts = get_prompts()
 # See Modelfile for instructions on how to use a custom model
 # TODO: Experiment with deepseek-r1
 llm = ChatOllama(
-    model="deepseek-r1:7b" or os.getenv("OLLAMA_MODEL") or "llama3.1:8b",
+    model=os.getenv("OLLAMA_MODEL") or "pv-curve" or "llama3.1:8b",
     base_url="http://localhost:11434"
 )
 

@@ -4,3 +4,6 @@ generated
 
 # Vector Database
 # vector_db
+
+# HPC (Clemson Palmetto, only temporarily ignored)
+palmetto-main.py

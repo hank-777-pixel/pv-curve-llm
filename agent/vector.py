@@ -3,7 +3,7 @@ from langchain_chroma import Chroma
 import os
 
 # Path to the vector database
-DB_LOCATION = "./vector_db"
+DB_LOCATION = "agent/vector_db"
 # Model used to embed the text into vectors
 EMBEDDING_MODEL = "mxbai-embed-large"
 # Number of vectors to return for each RAG query. Increasing this will increase the accuracy of the RAG query but will reduce speed.

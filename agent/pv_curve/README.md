@@ -1,5 +1,5 @@
 # TODO
-- [ ] Add node for pv_curve.py to AI agent
+- [X] Add node for pv_curve.py to AI agent
 - [ ] Improve documentation
 - [ ] Further research to improve PV curve generation method
 - [ ] Update inputs for most realistic and applicable results

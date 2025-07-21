@@ -1,11 +1,10 @@
 # RAG Training Data
 
-The data in this directory serves to train the RAG agent. It is not yet included in the Git repository pending copyright review.
+The data in this directory serves to train the RAG agent. Due to copyright, this raw data is not included in the repository. However, the embedded vector database is included.
 
-## TODO
+## Custom Data
 
-- [ ] Review copyright information/legality for including training resources in Open-Source Git Repo
-- [ ] Properly cite training resources under a citations header
+To embed custom data in the vector database, format your data as specified below and run `/agent/train.py`
 
 ## Required Data Format
 
@@ -20,3 +19,7 @@ This is another chunk of data.
 
 This is automatically embedded into the vector database based on this format.
 Run `../train.py` locally to retrain the RAG agent.
+
+## TODO
+
+- [ ] Properly cite training resources under a citations header
