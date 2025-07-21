@@ -24,15 +24,7 @@ try:
 """)
         print("=" * 60)
         run_agent()
-        
-except ImportError as e:
-    print(f"❌ Import Error: {e}")
-    print("\nMake sure you're in the project root and have installed dependencies:")
-    print("1. pip install -r requirements.txt")
-    print("2. cd agent && python train.py  # (optional, for RAG)")
-    
+            
 except Exception as e:
     print(f"❌ Error: {e}")
-    print("\nMake sure Ollama is running:")
-    print("• ollama serve")
-    print("• ollama pull llama3.1:8b  # or your preferred model")
+    print("\nReview the instructions in `README.md`")
