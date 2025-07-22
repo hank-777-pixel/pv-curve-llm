@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from typing_extensions import TypedDict, Annotated, Literal
 from typing import Union, List
 from .vector import retriever as _make_retriever
-from .prompts import get_prompts
+# from .prompts import get_prompts
+from .prompts2 import get_prompts
 from .pv_curve.pv_curve import generate_pv_curve
 from dotenv import load_dotenv
 import os

@@ -1,4 +1,4 @@
-# PV Curve LLM (Work in Progress)
+# P-V Curve LLM
 
 <img src="https://github.com/CURENT/andes/raw/master/docs/source/images/sponsors/CURENT_Logo_NameOnTrans.png" alt="CURENT ERC Logo" width="300" height="auto">
 
