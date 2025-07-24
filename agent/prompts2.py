@@ -4,7 +4,7 @@ All curly braces are doubled for proper Python string formatting.
 """
 
 CLASSIFIER_SYSTEM = """{{
-    "goal": "Classify user message intent for PV curve agent routing",
+    "goal": "Classify user message intent for PV curve agent routing as either question, parameter modification, or request to generate a P-V curve/run the simulation",
     "context": "Power-Voltage curve analysis system with three main functionalities",
     "classification_categories": {{
         "question": {{
@@ -19,18 +19,18 @@ CLASSIFIER_SYSTEM = """{{
             "indicator": "Commands or requests to modify values, specifically parameters will commonly start with words like 'set', 'change', 'make', 'increase', 'decrease', 'use', etc."
         }},
         "generation": {{
-            "description": "Requests to execute PV curve analysis",
-            "examples": ["Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation"],
-            "intent": "User wants to run simulation/P-V curve generation with current/specified parameters. Typically formatted as a command or request to run a simulation, commonly starting with words like 'run', 'generate', 'create', 'execute', 'start', etc."
+            "description": "Requests to execute PV curve analysis, often about generating, running, or creating a simulation",
+            "examples": ["Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation", "Generate", "Run"],
+            "intent": "User wants to run simulation/P-V curve generation with current/specified parameters. Typically formatted as a command or request to run a simulation, commonly starting with words like 'run', 'generate', 'create', 'execute', 'start', etc. If just one of those words is typed or something similar, it is likely a generation request."
         }}
     }},
     "classification_rules": [
         "Choose the category that best matches the user's primary intent",
-        "If unsure between parameter and generation: favor parameter if changing settings, favor generation if running analysis"
     ],
     "output_format": "Single word: question, parameter, or generation"
 }}"""
 
+# TODO: Explain effect of each parameter on the shape/structure of the curve
 PARAMETERS_CONTEXT = """{{
     "simulation_parameters": {{
         "total_count": 8,
@@ -41,38 +41,44 @@ PARAMETERS_CONTEXT = """{{
                 "options": ["IEEE14", "IEEE24", "IEEE30", "IEEE39", "IEEE57", "IEEE118", "IEEE300"],
                 "description": "IEEE test power system to analyze, the number after 'IEEE' is the number of buses in the system",
                 "details": "Different systems have different sizes and complexity levels, with higher bus systems being more complex",
-                "note": "All systems are small compared to real-world systems with thousands of buses"
+                "note": "All systems are small compared to real-world systems with thousands of buses",
+                "effect": "Changing the grid system will change the number of buses and the topology of the system, which will change the results of the simulation"
             }},
             "bus_to_monitor": {{
                 "name": "Bus to Monitor Voltage", 
                 "range": "0-300 depending on system size",
                 "description": "Electrical bus/node to track voltage during simulation",
-                "purpose": "Defines monitoring point for voltage stability analysis"
+                "purpose": "Defines monitoring point for voltage stability analysis",
+                "effect": "Changing the bus to monitor will change the voltage at that bus, which will change the results of the simulation"
             }},
             "load_increment": {{
                 "name": "Load Increment Step Size",
                 "description": "Percentage increase per simulation step",
                 "example": "0.01 means 1% increase per step",
-                "purpose": "Controls simulation granularity and precision"
+                "purpose": "Controls simulation granularity and precision",
+                "effect": "Changing the load increment will change the number of steps in the simulation, which will change the results of the simulation"
             }},
             "max_load_multiplier": {{
                 "name": "Maximum Load Multiplier",
                 "range": "1.0-10.0",
                 "description": "Maximum load level as multiplier of base load",
                 "example": "3.0 means test up to 300% of normal load",
-                "behavior": "Load multiplied by this amount until maximum/nose point reached"
+                "behavior": "Load multiplied by this amount until maximum/nose point reached",
+                "effect": "Changing the maximum load multiplier will change the maximum load level, which will change the results of the simulation"
             }},
             "power_factor": {{
                 "name": "Power Factor",
                 "range": "0.0-1.0", 
                 "description": "Relationship between real power and reactive power",
-                "example": "0.95 = 95% power factor"
+                "example": "0.95 = 95% power factor",
+                "effect": "Changing the power factor will change the reactive power, which will change the results of the simulation"
             }},
             "voltage_threshold": {{
                 "name": "Voltage Threshold to Stop",
                 "range": "0.0-1.0 per unit",
                 "description": "Minimum voltage level before simulation stops for safety",
-                "reference": "1.0 = nominal voltage"
+                "reference": "1.0 = nominal voltage",
+                "effect": "Changing the voltage threshold will change the voltage at which the simulation stops, which will change the results of the simulation"
             }},
             "load_type": {{
                 "name": "Load Type",
@@ -80,7 +86,8 @@ PARAMETERS_CONTEXT = """{{
                 "description": "Whether loads consume or supply reactive power",
                 "mapping": {{
                     "inductive": {{"value": false, "behavior": "normal loads, consume reactive power"}},
-                    "capacitive": {{"value": true, "behavior": "improve voltage stability, supply reactive power"}}
+                    "capacitive": {{"value": true, "behavior": "improve voltage stability, supply reactive power"}},
+                    "effect": "Changing the load type will change the reactive power, which will change the results of the simulation"
                 }}
             }},
             "curve_type": {{
@@ -89,9 +96,10 @@ PARAMETERS_CONTEXT = """{{
                 "description": "Whether to show complete theoretical curve or practical upper portion",
                 "mapping": {{
                     "continuous": {{"value": true, "shows": "full mirrored curve including theoretical lower branch"}},
-                    "stops_at_nose": {{"value": false, "shows": "only upper operating branch"}}
+                    "stops_at_nose": {{"value": false, "shows": "only upper operating branch"}},
                 }},
-                "note": "Everything under nose point is theoretical as system has already collapsed"
+                "note": "Everything under nose point is theoretical as system has already collapsed",
+                "effect": "Changing the curve type will make the curve appear to be a full parabola instead of a half parabola ending at the peak/nose point"
             }}
         }}
     }}
@@ -399,6 +407,80 @@ ANALYSIS_AGENT_USER = """{{
     "output_style": "Engineering insights focused on practical system operation implications"
 }}"""
 
+COMPOUND_CLASSIFIER_SYSTEM = """{{
+    "goal": "Determine if user message contains multiple sequential actions or is a single action request",
+    "classification_types": {{
+        "simple": {{
+            "description": "Single action requests that can be handled by one workflow node",
+            "examples": [
+                "What is voltage stability?",
+                "Set power factor to 0.95", 
+                "Generate a PV curve",
+                "Explain power factor effects"
+            ],
+            "characteristics": "One clear intent or action"
+        }},
+        "compound": {{
+            "description": "Multiple actions that need sequential execution",
+            "examples": [
+                "Explain X then generate a curve with Y",
+                "Set power factor to 0.96, generate curve, then set to 0.94 and generate another",
+                "Generate curve with 0.96 power factor and 0.94 power factor",
+                "What is voltage stability then run simulation"
+            ],
+            "characteristics": "Multiple distinct actions, sequential connecting words"
+        }}
+    }},
+    "detection_indicators": {{
+        "compound_keywords": ["then", "after that", "next", "and then", "also", "followed by"],
+        "multiple_parameter_values": "Same parameter mentioned with different values",
+        "mixed_request_types": "Educational + practical requests combined"
+    }},
+    "classification_rules": [
+        "Look for multiple distinct actions",
+        "Check for sequential connecting words", 
+        "Identify multiple parameter values for same parameter",
+        "Detect educational + practical request combinations"
+    ],
+    "output_format": "message_type: 'simple' or 'compound'"
+}}"""
+
+PLANNER_SYSTEM = """{{
+    "goal": "Break down compound user requests into sequential executable steps",
+    "step_types": {{
+        "question": {{
+            "description": "Educational or informational requests",
+            "examples": ["Explain power factor effects", "What is voltage stability?"]
+        }},
+        "parameter": {{
+            "description": "Parameter modification with specific values",
+            "examples": ["Set power factor to 0.96", "Change grid to ieee118"],
+            "requirement": "Must extract specific parameter values into parameters field"
+        }},
+        "generation": {{
+            "description": "PV curve generation/analysis execution", 
+            "examples": ["Generate PV curve", "Run simulation"]
+        }}
+    }},
+    "planning_guidelines": {{
+        "step_atomicity": "Each step should perform one atomic action",
+        "sequential_execution": "Steps must be ordered for proper sequential execution",
+        "parameter_extraction": "Extract specific parameter values accurately",
+        "clear_content": "Each step content should be clear and actionable"
+    }},
+    "example_breakdown": {{
+        "input": "Explain power factor effects then generate curve with 0.96 power factor and 0.94 power factor",
+        "output_steps": [
+            {{"action": "question", "content": "Explain power factor effects"}},
+            {{"action": "parameter", "content": "Set power factor to 0.96", "parameters": {{"power_factor": 0.96}}}},
+            {{"action": "generation", "content": "Generate PV curve"}},
+            {{"action": "parameter", "content": "Set power factor to 0.94", "parameters": {{"power_factor": 0.94}}}},
+            {{"action": "generation", "content": "Generate PV curve"}}
+        ]
+    }},
+    "output_format": "MultiStepPlan with steps array and description"
+}}"""
+
 def get_prompts():
     """
     Returns a dictionary of prompts for the agentic workflow.
@@ -424,8 +506,14 @@ def get_prompts():
         "error_handler": {
             "system": ERROR_HANDLER_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
         },
-        "analysis_agent": {
-            "system": ANALYSIS_AGENT_SYSTEM.strip(),
-            "user": ANALYSIS_AGENT_USER.strip()
-        }
-    } 
+            "analysis_agent": {
+        "system": ANALYSIS_AGENT_SYSTEM.strip(),
+        "user": ANALYSIS_AGENT_USER.strip()
+    },
+    "compound_classifier": {
+        "system": COMPOUND_CLASSIFIER_SYSTEM.strip()
+    },
+    "planner": {
+        "system": PLANNER_SYSTEM.strip()
+    }
+} 

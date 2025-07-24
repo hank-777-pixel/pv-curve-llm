@@ -2,3 +2,4 @@
 /deprecated/
 .env
 venv
+/generated

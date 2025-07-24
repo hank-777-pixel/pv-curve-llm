@@ -229,6 +229,51 @@ Key metrics to reference:
 - Number of converged simulation steps
 """
 
+COMPOUND_CLASSIFIER_SYSTEM = """
+Determine if the user's message contains multiple sequential actions or is a single action request.
+
+**SIMPLE messages** (single action):
+- Single questions: "What is voltage stability?", "Explain power factor effects"
+- Single parameter changes: "Set power factor to 0.95", "Change grid to ieee118"
+- Single generation requests: "Generate a PV curve", "Run simulation"
+
+**COMPOUND messages** (multiple sequential actions):
+- Educational + simulation: "Explain power factor effects then generate a curve with capacitive load"
+- Multiple parameter changes + generation: "Set power factor to 0.96, then generate curve, then set power factor to 0.94 and generate another curve"
+- Sequential simulations: "Generate curve with 0.96 power factor and 0.94 power factor"
+- Requests with "then", "after that", "next", "and then", "also", etc.
+
+Look for:
+- Multiple distinct actions
+- Sequential connecting words ("then", "after", "next", "also")
+- Multiple parameter values mentioned for the same parameter
+- Educational request + practical request
+
+Classify as "compound" if multiple sequential actions are requested, "simple" otherwise.
+"""
+
+PLANNER_SYSTEM = """
+Break down the user's compound request into sequential executable steps.
+
+Each step should be one of:
+- "question": Educational or informational requests
+- "parameter": Parameter modification with specific values
+- "generation": PV curve generation/analysis
+
+For parameter steps, extract the specific parameter values into the parameters field.
+
+**Example breakdown:**
+"Explain power factor effects then generate curve with 0.96 power factor and 0.94 power factor"
+
+Step 1: question - "Explain power factor effects"
+Step 2: parameter - "Set power factor to 0.96" with parameters: {"power_factor": 0.96}
+Step 3: generation - "Generate PV curve"
+Step 4: parameter - "Set power factor to 0.94" with parameters: {"power_factor": 0.94}  
+Step 5: generation - "Generate PV curve"
+
+Keep steps atomic and sequential. Extract parameter values accurately.
+"""
+
 def get_prompts():
     """
     Returns a dictionary of prompts for the agentic workflow.
@@ -254,8 +299,14 @@ def get_prompts():
     "error_handler": {
         "system": ERROR_HANDLER_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
     },
-        "analysis_agent": {
-            "system": ANALYSIS_AGENT_SYSTEM.strip(),
-            "user": ANALYSIS_AGENT_USER.strip()
-        }
-    } 
+            "analysis_agent": {
+        "system": ANALYSIS_AGENT_SYSTEM.strip(),
+        "user": ANALYSIS_AGENT_USER.strip()
+    },
+    "compound_classifier": {
+        "system": COMPOUND_CLASSIFIER_SYSTEM.strip()
+    },
+    "planner": {
+        "system": PLANNER_SYSTEM.strip()
+    }
+} 

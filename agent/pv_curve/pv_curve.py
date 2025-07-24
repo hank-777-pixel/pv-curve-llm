@@ -85,7 +85,7 @@ def generate_pv_curve(
 
         except pp.LoadflowNotConverged:
             # If the solver can't find a valid solution, we have reached the collapse point
-            print("Power flow did not converge — collapse point reached.")
+            print("✅ PV Curve Generated - Voltage collapse point successfully identified.")
             converged = False
             break
 
@@ -143,6 +143,11 @@ def generate_pv_curve(
     plt.grid(True)
     plt.legend()
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    
+    print(f"\n✅ PV curve successfully generated and saved at: {save_path}")
+    print("📊 Displaying curve preview - close the plot window to continue analysis...\n")
+    
+    plt.show()
     plt.close()
 
 
@@ -173,17 +178,8 @@ def generate_pv_curve(
         "save_path": save_path
     }
 
-    print(f"\nP–V Curve Analysis Results:")
-    print(f"Grid System: {grid.upper()}")
-    print(f"Target Bus: {target_bus_idx}")
-    print(f"Initial Load: {results_summary['initial_conditions']['load_mw']:.1f} MW")
-    print(f"Initial Voltage: {results_summary['initial_conditions']['voltage_pu']:.3f} pu")
-    print(f"Nose Point Load: {results_summary['nose_point']['load_mw']:.1f} MW")
-    print(f"Nose Point Voltage: {results_summary['nose_point']['voltage_pu']:.3f} pu")
-    print(f"Load Margin: {results_summary['load_margin_mw']:.1f} MW")
-    print(f"Total Voltage Drop: {results_summary['voltage_drop_total']:.3f} pu")
-    print(f"Converged Steps: {results_summary['converged_steps']}")
-    print(f"P–V curve saved to {save_path}")
+    # Analysis details will be handled by the analysis agent
+    # Results summary is returned for the LLM to analyze
 
     return results_summary
 

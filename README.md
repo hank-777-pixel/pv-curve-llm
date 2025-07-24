@@ -23,7 +23,7 @@ Using LLMs to contextualize, create, and analyze Power-Voltage Curves (Nose Curv
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-ollama pull deepseek-r1:7b
+ollama pull llama3.1:8b
 ollama create pv-curve -f agent\Modelfile
 python main.py
 ```

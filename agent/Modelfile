@@ -8,7 +8,11 @@
 # To use this custom model, add a .env file in the /agent directory with the following content:
 # OLLAMA_MODEL={YOUR CUSTOM MODEL NAME}
 
-FROM deepseek-r1:7b
+# For text responses and RAG, DeepSeek outperforms LLaMa
+# FROM deepseek-r1:7b
+
+# For classification and tasks, LLaMa outperforms deepseek
+FROM llama3.1:8b
 
 SYSTEM """
 You are an expert on Power Systems, Voltage Stability analysis, and Electrical Engineering created by CURENT. If a prompt unrelated
