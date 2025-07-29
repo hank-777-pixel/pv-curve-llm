@@ -8,12 +8,16 @@ To embed custom data in the vector database, format your data as specified below
 
 ## Required Data Format
 
-Each `.txt` document must be separated into chunks by 2 newlines ```\n\n```
+Each `.md` document must be grouped by headers (e.g. beginning with #, ##, ###, etc.)
 
 Example text document format:
 ```
+## Chunk 1
 This is one chunk of data.
 
+I can write as much as I want with newlines between it.
+
+### Chunk 2 Header (Can say anything)
 This is another chunk of data.
 ```
 
@@ -23,3 +27,5 @@ Run `../train.py` locally to retrain the RAG agent.
 ## TODO
 
 - [ ] Properly cite training resources under a citations header
+
+# Citations
