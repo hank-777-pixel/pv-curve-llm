@@ -8,8 +8,9 @@ from agent.prompts import get_prompts
 from agent.pv_curve.pv_curve import generate_pv_curve
 
 from agent.models.state_models import Inputs
-from agent.base.common_utils import format_inputs_display, create_initial_state
+from agent.utils.common_utils import format_inputs_display, create_initial_state
 from agent.workflows.compound_workflow import create_compound_workflow
+from agent.terminal_ui import divider, info, answer
 
 load_dotenv()
 
@@ -31,9 +32,9 @@ def create_graph():
     llm, prompts, retriever = setup_dependencies()
     return create_compound_workflow(llm, prompts, retriever, generate_pv_curve)
 
+
 def run_agent():
-    print("Welcome to the PV Curve Agent! Type 'quit' or 'q' to exit.")
-    
+    print("Welcome to the PV Curve Agent! Type 'quit' or 'q' to exit.")    
     llm, prompts, retriever = setup_dependencies()
     graph = create_compound_workflow(llm, prompts, retriever, generate_pv_curve)
     
@@ -42,11 +43,13 @@ def run_agent():
     state = create_initial_state()
 
     while True:
-        print(f"\nCurrent parameters:\n{format_inputs_display(state['inputs'])}")
-        
+        divider()
+        print(f"Current parameters:\n{format_inputs_display(state['inputs'])}")
+        divider()
+
         user_input = input("\nMessage: ")
         if user_input.strip().lower() in ["quit", "q"]:
-            print("Quitting...")
+            info("Quitting...")
             break
 
         state["messages"] = state.get("messages", []) + [HumanMessage(content=user_input)]
@@ -56,9 +59,9 @@ def run_agent():
             
             if state.get("messages") and len(state["messages"]) > 0:
                 last_message = state["messages"][-1]
-                print(f"Assistant: {last_message.content}")
+                answer(last_message.content)
         except Exception as e:
-            print(f"Error: {e}")
+            info(f"Error: {e}")
             state["error_info"] = None  # Reset error state
 
 if __name__ == "__main__":

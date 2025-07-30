@@ -5,6 +5,7 @@ View `README.md` for run instructions.
 
 try:
     from agent.main import run_agent
+    from agent.terminal_ui import divider
     
     if __name__ == "__main__":
         print("""
@@ -22,7 +23,7 @@ try:
 ╚██████╔╝███████╗██║░╚███║███████╗██║░░██║██║░░██║░░░██║░░░╚█████╔╝██║░░██║
 ░╚═════╝░╚══════╝╚═╝░░╚══╝╚══════╝╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░░╚════╝░╚═╝░░╚═╝
 """)
-        print("=" * 60)
+        divider()
         run_agent()
             
 except Exception as e:

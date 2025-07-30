@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from agent.terminal_ui import info, answer
 import pandapower as pp
 import pandapower.networks as pn
 from datetime import datetime
@@ -80,12 +81,12 @@ def generate_pv_curve(
 
             # Stop if voltage drops below chosen limit (collapse point)
             if v_mag < voltage_limit:
-                print("Voltage below limit, stopping.")
+                info("Voltage below limit, stopping.")
                 break
 
         except pp.LoadflowNotConverged:
             # If the solver can't find a valid solution, we have reached the collapse point
-            print("✅ PV Curve Generated - Voltage collapse point successfully identified.")
+            answer("P-V Curve Generated - Voltage collapse point successfully identified.")
             converged = False
             break
 
@@ -144,8 +145,8 @@ def generate_pv_curve(
     plt.legend()
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     
-    print(f"\n✅ PV curve successfully generated and saved at: {save_path}")
-    print("📊 Displaying curve preview - close the plot window to continue analysis...\n")
+    answer(f"P-V curve successfully generated and saved at: {save_path}")
+    answer("Displaying curve preview - close the plot window to continue analysis...")
     
     plt.show()
     plt.close()

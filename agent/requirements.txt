@@ -10,3 +10,5 @@ matplotlib
 pandapower
 numba
 dotenv
+rich
+yaspin

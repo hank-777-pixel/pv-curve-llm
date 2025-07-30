@@ -1,8 +1,9 @@
 from agent.models.state_models import State
 from agent.models.plan_models import MessageClassifier, QuestionClassifier, CompoundMessageClassifier
+from agent.terminal_ui import info
 
 def classify_message(state: State, llm, prompts):
-    print("🔍 Classifying message...")
+    info("Classifying response...")
     last_message = state["messages"][-1]
     classifier_llm = llm.with_structured_output(MessageClassifier)
     
@@ -14,7 +15,7 @@ def classify_message(state: State, llm, prompts):
     return {"message_type": result.message_type}
 
 def classify_compound_message(state: State, llm, prompts):
-    print("🔍 Analyzing message complexity...")
+    info("Analyzing message...")
     last_message = state["messages"][-1]
     classifier_llm = llm.with_structured_output(CompoundMessageClassifier)
     
@@ -26,7 +27,7 @@ def classify_compound_message(state: State, llm, prompts):
     return {"is_compound": result.message_type == "compound"}
 
 def question_classifier(state: State, llm, prompts):
-    print("🔍 Determining question type...")
+    info("Analyzing question...")
     last_message = state["messages"][-1]
     classifier_llm = llm.with_structured_output(QuestionClassifier)
     

@@ -2,9 +2,10 @@ from langchain_core.messages import AIMessage
 from pydantic import ValidationError
 from agent.models.state_models import State
 from agent.models.plan_models import InputModifier, MultiStepPlan
+from agent.terminal_ui import info, answer
 
 def parameter_agent(state: State, llm, prompts):
-    print("⚙️ Processing parameter changes...")
+    info("Processing parameter changes...")
     last_message = state["messages"][-1]
     modifier_llm = llm.with_structured_output(InputModifier)
     current_inputs = state["inputs"]
@@ -50,7 +51,7 @@ def parameter_agent(state: State, llm, prompts):
             reply_content = f"Updated {len(reply_parts)} parameters:\n" + "\n".join(f"• {part}" for part in reply_parts)
         
         # Show the parameter changes immediately
-        print(f"✅ {reply_content}")
+        answer(reply_content)
         
         reply = AIMessage(content=reply_content)
         return {"messages": [reply], "inputs": new_inputs}
@@ -75,7 +76,7 @@ def parameter_agent(state: State, llm, prompts):
         }}
 
 def planner_agent(state: State, llm, prompts):
-    print("📋 Creating multi-step plan...")
+    info("Creating multi-step plan...")
     last_message = state["messages"][-1]
     planner_llm = llm.with_structured_output(MultiStepPlan)
     
@@ -84,10 +85,10 @@ def planner_agent(state: State, llm, prompts):
         {"role": "user", "content": f"Break down this request: {last_message.content}"}
     ])
     
-    print(f"📋 Plan created with {len(result.steps)} steps: {result.description}")
+    info(f"Plan created with {len(result.steps)} steps: {result.description}")
     
     # List out all planned steps
-    print("\n📝 Planned steps:")
+    info("\nPlanned steps:")
     for i, step in enumerate(result.steps, 1):
         step_desc = f"Step {i}: {step.action}"
         if step.parameters:
@@ -95,8 +96,8 @@ def planner_agent(state: State, llm, prompts):
             step_desc += f" ({param_desc})"
         if step.content and step.content != step.action:
             step_desc += f" - {step.content}"
-        print(f"  {step_desc}")
-    print()
+        info(f"  {step_desc}")
+    
     
     return {"plan": result, "current_step": 0, "step_results": []}
 
@@ -108,7 +109,7 @@ def step_controller(state: State):
         return {"next": "compound_summary"}
     
     step = plan.steps[current_step]
-    print(f"▶️ Executing step {current_step + 1} of {len(plan.steps)}: {step.action}")
+    info(f"Executing step {current_step + 1} of {len(plan.steps)}: {step.action}")
     
     if step.action == "parameter" and step.parameters:
         try:
@@ -139,7 +140,7 @@ def step_controller(state: State):
                 reply_content = f"Updated {len(reply_parts)} parameters:\n" + "\n".join(f"• {part}" for part in reply_parts)
             
             # Show the parameter changes immediately for multi-step
-            print(f"✅ Step {current_step + 1} result: {reply_content}")
+            answer(reply_content)
             
             reply = AIMessage(content=reply_content)
             return {"messages": [reply], "inputs": new_inputs, "next": "advance_step"}
@@ -167,11 +168,7 @@ def advance_step(state: State):
         last_message = state["messages"][-1]
         result_preview = last_message.content if hasattr(last_message, 'content') else str(last_message)
         
-        # Only show result if it wasn't already shown in step_controller
         current_step_action = plan.steps[current_step].action if plan and current_step < len(plan.steps) else "unknown"
-        if current_step_action != "parameter":  # Parameters already shown in step_controller
-            # Show complete result with clear formatting
-            print(f"\n✅ Step {current_step + 1} result:\n{result_preview}\n")
         
         step_results.append({
             "step": current_step,

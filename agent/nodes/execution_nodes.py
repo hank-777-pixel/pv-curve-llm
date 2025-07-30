@@ -1,46 +1,35 @@
 from langchain_core.messages import AIMessage
 from agent.models.state_models import State
+from agent.terminal_ui import info, spinner, answer
 
 def question_general_agent(state: State, llm, prompts, retriever):
-    print("📚 Retrieving context...")
     last_message = state["messages"][-1]
-    context = retriever.invoke(last_message.content)
-    
-    print("🧠 Analyzing question...")
-    messages = [
-        {"role": "system", "content": prompts["question_general_agent"]["system"].format(context=context)},
-        {"role": "user", "content": prompts["question_general_agent"]["user"].format(user_input=last_message.content)}
-    ]
-    
-    reply = llm.invoke(messages)
-    
-    # Show a preview of the answer for multi-step plans
-    if state.get("is_compound"):
-        answer_preview = reply.content[:100] + "..." if len(reply.content) > 100 else reply.content
-        print(f"💬 Answer: {answer_preview}")
-    
+    info("Retrieving context...")
+    with spinner("Breaking down question...") as update:
+        update("Retrieving context...")
+        context = retriever.invoke(last_message.content)
+        update("Analyzing question...")
+        messages = [
+            {"role": "system", "content": prompts["question_general_agent"]["system"].format(context=context)},
+            {"role": "user", "content": prompts["question_general_agent"]["user"].format(user_input=last_message.content)}
+        ]
+        reply = llm.invoke(messages)
+    answer(reply.content)
     return {"messages": [reply]}
 
 def question_parameter_agent(state: State, llm, prompts):
-    print("📖 Explaining parameters...")
     last_message = state["messages"][-1]
-    
-    messages = [
-        {"role": "system", "content": prompts["question_parameter_agent"]["system"]},
-        {"role": "user", "content": last_message.content}
-    ]
-    
-    reply = llm.invoke(messages)
-    
-    # Show a preview of the explanation for multi-step plans
-    if state.get("is_compound"):
-        explanation_preview = reply.content[:100] + "..." if len(reply.content) > 100 else reply.content
-        print(f"📝 Explanation: {explanation_preview}")
-    
+    with spinner("Explaining parameters...") as update:
+        messages = [
+            {"role": "system", "content": prompts["question_parameter_agent"]["system"]},
+            {"role": "user", "content": last_message.content}
+        ]
+        reply = llm.invoke(messages)
+    answer(reply.content)
     return {"messages": [reply]}
 
 def generation_agent(state: State, generate_pv_curve):
-    print("📊 Generating PV curve...")
+    info("Generating PV curve...")
     from langchain_core.messages import AIMessage
     inputs = state["inputs"]
     
@@ -66,13 +55,13 @@ def generation_agent(state: State, generate_pv_curve):
         )
         
         # Show positive generation success message
-        print(f"✅ PV Curve Generated: {inputs.grid.upper()} Bus {inputs.bus_id}, PF: {inputs.power_factor}")
+        info(f"PV Curve Generated: {inputs.grid.upper()} Bus {inputs.bus_id}, PF: {inputs.power_factor}")
         
         reply = AIMessage(content=reply_content)
         return {"messages": [reply], "results": results}
     
     except Exception as e:
-        print(f"❌ Generation failed: {str(e)}")
+        info(f"Generation failed: {str(e)}")
         return {"error_info": {
             "error_type": "simulation_error",
             "error_message": str(e),
@@ -81,10 +70,11 @@ def generation_agent(state: State, generate_pv_curve):
         }}
 
 def analysis_agent(state: State, llm, prompts, retriever):
-    print("📈 Analyzing PV curve results...")
+    info("Analyzing PV curve results...")
     results = state.get("results")
     if not results:
         reply = AIMessage(content="No PV curve results available for analysis.")
+        answer(reply.content)
         return {"messages": [reply]}
     
     inputs = state["inputs"]
@@ -94,27 +84,26 @@ def analysis_agent(state: State, llm, prompts, retriever):
         f"power factor {inputs.power_factor} voltage collapse"
     )
     
-    print("📚 Retrieving analysis context...")
-    context = retriever.invoke(analysis_query)
-    
-    print("🧠 Performing analysis...")
-    messages = [
-        {"role": "system", "content": prompts["analysis_agent"]["system"].format(context=context)},
-        {"role": "user", "content": prompts["analysis_agent"]["user"].format(
-            results=results,
-            grid_system=results['grid_system'].upper()
-        )}
-    ]
-    
-    reply = llm.invoke(messages)
+    with spinner("Retrieving analysis context...") as update:
+        context = retriever.invoke(analysis_query)
+        update("Performing analysis...")
+        messages = [
+            {"role": "system", "content": prompts["analysis_agent"]["system"].format(context=context)},
+            {"role": "user", "content": prompts["analysis_agent"]["user"].format(
+                results=results,
+                grid_system=results['grid_system'].upper()
+            )}
+        ]
+        reply = llm.invoke(messages)
     
     # Show analysis completion
-    print("✅ Analysis completed")
+    info("Analysis completed")
     
+    answer(reply.content)
     return {"messages": [reply]}
 
 def error_handler_agent(state: State, llm, prompts):
-    print("⚠️ Handling error...")
+    info("Handling error...")
     error_info = state.get("error_info", {})
     
     error_context = f"""
@@ -135,12 +124,13 @@ Additional Info: {error_info.get('validation_errors', 'None')}
     reply = llm.invoke(messages)
     
     # Show error handling completion
-    print(f"⚠️ Error handled: {error_info.get('error_type', 'unknown')}")
+    info(f"Error handled: {error_info.get('error_type', 'unknown')}")
     
+    answer(reply.content)
     return {"messages": [reply]}
 
 def compound_summary_agent(state: State):
-    print("📝 Summarizing multi-step results...")
+    info("Summarizing multi-step results...")
     plan = state.get("plan")
     step_results = state.get("step_results", [])
     
@@ -155,6 +145,7 @@ def compound_summary_agent(state: State):
     summary = "\n".join(summary_parts)
     reply = AIMessage(content=summary)
     
-    print("✅ Multi-step plan completed")
+    info("Multi-step plan completed")
     
+    answer(reply.content)
     return {"messages": [reply]} 
