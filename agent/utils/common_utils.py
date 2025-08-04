@@ -16,6 +16,7 @@ def format_inputs_display(inputs: Inputs) -> str:
     for param, value in inputs.model_dump().items():
         label = param_labels.get(param, param)
         
+        # Display the parameter in a more readable format
         if param == "capacitive":
             display_value = "Capacitive" if value else "Inductive"
         elif param == "continuation":

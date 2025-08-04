@@ -139,7 +139,6 @@ def step_controller(state: State):
             else:
                 reply_content = f"Updated {len(reply_parts)} parameters:\n" + "\n".join(f"• {part}" for part in reply_parts)
             
-            # Show the parameter changes immediately for multi-step
             answer(reply_content)
             
             reply = AIMessage(content=reply_content)
@@ -163,7 +162,6 @@ def advance_step(state: State):
     plan = state.get("plan")
     step_results = state.get("step_results", [])
     
-    # Show step completion with complete result
     if state.get("messages"):
         last_message = state["messages"][-1]
         result_preview = last_message.content if hasattr(last_message, 'content') else str(last_message)

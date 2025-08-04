@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from agent.terminal_ui import info, answer
 import pandapower as pp
 import pandapower.networks as pn
 from datetime import datetime
@@ -81,12 +80,12 @@ def generate_pv_curve(
 
             # Stop if voltage drops below chosen limit (collapse point)
             if v_mag < voltage_limit:
-                info("Voltage below limit, stopping.")
+                print("Voltage below limit, stopping.")
                 break
 
         except pp.LoadflowNotConverged:
             # If the solver can't find a valid solution, we have reached the collapse point
-            answer("P-V Curve Generated - Voltage collapse point successfully identified.")
+            print("P-V Curve Generated - Voltage collapse point successfully identified.")
             converged = False
             break
 
@@ -145,13 +144,13 @@ def generate_pv_curve(
     plt.legend()
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     
-    answer(f"P-V curve successfully generated and saved at: {save_path}")
-    answer("Displaying curve preview - close the plot window to continue analysis...")
+    print(f"P-V curve successfully generated and saved at: {save_path}")
+    print("Displaying curve preview - close the plot window to continue analysis...")
     
     plt.show()
     plt.close()
 
-
+    # TODO: Improve returned summary
     results_summary = {
         "grid_system": grid,
         "target_bus": target_bus_idx,
@@ -190,11 +189,13 @@ if __name__ == "__main__":
 
     Modify the parameters to your liking, then run `python pv_curve.py` in this directory.
     """
+
     generate_pv_curve(
         grid="ieee39",
-        target_bus_idx=5,
+        target_bus_idx=28,
         step_size=0.005,
         max_scale=3.0,
-        power_factor=1.0,
-        voltage_limit=0.4,
+        power_factor=0.95,
+        voltage_limit=0.2,
     )
+    

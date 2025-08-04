@@ -20,6 +20,16 @@ Each grid system has a different number of buses and different load patterns, al
 
 2. **Bus to Monitor Voltage**: Specifies which electrical bus/node in the power system to track voltage at during the simulation (range 0-300 depending on system size).
 
+Each bus has on a system can be a generator bus or a load bus.
+P-V Curves are intended for load buses, and the available load buses on each system are listed below:
+ieee14: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13]
+ieee24: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 17, 18, 19]
+ieee30: [1, 2, 3, 6, 7, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23, 25, 28, 29]
+ieee39: [0, 2, 3, 6, 7, 8, 11, 14, 15, 17, 19, 20, 22, 23, 24, 25, 26, 27, 28, 30, 38]
+ieee57: [0, 1, 2, 4, 5, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 24, 26, 27, 28, 29, 30, 31, 32, 34, 37, 40, 41, 42, 43, 46, 48, 49, 50, 51, 52, 53, 54, 55, 56]
+ieee118: [0, 1, 2, 3, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 26, 27, 28, 30, 31, 32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61, 65, 66, 69, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 84, 85, 87, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 111, 112, 113, 114, 115, 116, 117]
+ieee300: [0, 1, 2, 4, 5, 7, 8, 9, 10, 12, 13, 14, 16, 18, 19, 20, 21, 23, 24, 25, 26, 30, 31, 33, 34, 36, 37, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 52, 54, 57, 58, 59, 60, 62, 63, 65, 66, 68, 73, 74, 75, 76, 77, 78, 79, 80, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 96, 98, 99, 100, 101, 102, 103, 104, 105, 113, 114, 115, 116, 117, 118, 119, 120, 121, 123, 126, 130, 132, 133, 134, 135, 137, 139, 140, 141, 145, 148, 149, 150, 151, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 164, 165, 166, 167, 169, 170, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 186, 187, 189, 192, 193, 194, 195, 196, 198, 199, 200, 201, 202, 203, 205, 206, 207, 209, 210, 211, 212, 213, 216, 221, 223, 224, 225, 226, 227, 230, 231, 232, 234, 235, 236, 237, 239, 240, 242, 266, 267, 268, 273, 274, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 291, 292, 293, 296, 297, 298, 299]
+
 3. **Load Increment Step Size**: Controls how much to increase the system load at each simulation step. This values represents percentage increase per step,
 where 0.01 means 1% increase per step.
 
@@ -27,8 +37,10 @@ where 0.01 means 1% increase per step.
 This means that for every step, the typical load will be multiplied by this amount until the maximum load/nose point is reached.
 
 5. **Power Factor**: Defines the relationship between real power and reactive power in the loads (range 0.0-1.0, where 0.95 = 95% power factor).
+Note that a power factor under 0.6 often causes errors. As for the effect on the graph, a lower power factor will cause the curve and nose point to shift downward, and vice versa.
 
 6. **Voltage Threshold to Stop**: Sets the minimum voltage level before simulation stops for safety (range 0.0-1.0 per unit, where 1.0 = nominal voltage).
+Therefore, a voltage limit of 0.9 will cause the simulation to stop at the first voltage after 0.9pu.
 
 7. **Load Type**: Determines whether loads consume reactive power (inductive) or supply reactive power (capacitive).
 In the interface, this appears as "Load type" with values "Inductive" (for normal loads) or "Capacitive" (for loads that improve voltage stability). 
