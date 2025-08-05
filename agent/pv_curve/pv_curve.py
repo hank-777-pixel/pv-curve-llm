@@ -150,7 +150,26 @@ def generate_pv_curve(
     plt.show()
     plt.close()
 
-    # TODO: Improve returned summary
+    # Add points and details of shape for the LLM to better understand the curve
+    curve_points = []
+    initial_voltage = float(V_vals[0])
+    initial_load = float(P_vals[0])
+    
+    for i, (load, voltage) in enumerate(zip(P_vals, V_vals)):
+        load_scale = load / initial_load if initial_load > 0 else 1.0
+        voltage_drop_from_initial = initial_voltage - voltage
+        voltage_drop_percent = (voltage_drop_from_initial / initial_voltage) * 100 if initial_voltage > 0 else 0
+        
+        curve_points.append({
+            "step": i + 1,
+            "load_mw": float(load),
+            "voltage_pu": float(voltage),
+            "load_scale_factor": float(load_scale),
+            "voltage_drop_from_initial_pu": float(voltage_drop_from_initial),
+            "voltage_drop_percent": float(voltage_drop_percent),
+            "is_nose_point": i == max_p_idx
+        })
+
     results_summary = {
         "grid_system": grid,
         "target_bus": target_bus_idx,
@@ -158,6 +177,7 @@ def generate_pv_curve(
         "capacitive_load": capacitive,
         "load_values_mw": list(P_vals),
         "voltage_values_pu": list(V_vals),
+        "curve_points": curve_points,
         "nose_point": {
             "load_mw": float(nose_p),
             "voltage_pu": float(nose_v),
@@ -172,7 +192,9 @@ def generate_pv_curve(
             "voltage_pu": float(V_vals[-1])
         },
         "voltage_drop_total": float(V_vals[0] - V_vals[-1]),
+        "voltage_drop_percent_total": float((V_vals[0] - V_vals[-1]) / V_vals[0] * 100) if V_vals[0] > 0 else 0,
         "load_margin_mw": float(nose_p - P_vals[0]),
+        "load_margin_percent": float((nose_p - P_vals[0]) / P_vals[0] * 100) if P_vals[0] > 0 else 0,
         "converged_steps": len(results),
         "voltage_limit": voltage_limit,
         "save_path": save_path
@@ -192,10 +214,11 @@ if __name__ == "__main__":
 
     generate_pv_curve(
         grid="ieee39",
-        target_bus_idx=28,
+        target_bus_idx=5,
         step_size=0.005,
         max_scale=3.0,
         power_factor=0.95,
         voltage_limit=0.2,
+        capacitive=True,
+        continuation=True
     )
-    
