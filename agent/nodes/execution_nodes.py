@@ -14,7 +14,6 @@ def question_general_agent(state: State, llm, prompts, retriever):
             {"role": "user", "content": prompts["question_general_agent"]["user"].format(user_input=last_message.content)}
         ]
         reply = llm.invoke(messages)
-    answer(reply.content)
     return {"messages": [reply]}
 
 def question_parameter_agent(state: State, llm, prompts):
@@ -25,7 +24,6 @@ def question_parameter_agent(state: State, llm, prompts):
             {"role": "user", "content": last_message.content}
         ]
         reply = llm.invoke(messages)
-    answer(reply.content)
     return {"messages": [reply]}
 
 def generation_agent(state: State, generate_pv_curve):
@@ -55,7 +53,9 @@ def generation_agent(state: State, generate_pv_curve):
         )
         
         # Show positive generation success message
-        info(f"PV Curve Generated: {inputs.grid.upper()} Bus {inputs.bus_id}, PF: {inputs.power_factor}")
+        load_type_display = "Capacitive" if inputs.capacitive else "Inductive"
+        curve_type_display = "Continuous" if inputs.continuation else "Stops at nose point"
+        info(f"PV Curve Generated: {inputs.grid.upper()} Bus {inputs.bus_id} | Step: {inputs.step_size} | Max Scale: {inputs.max_scale} | PF: {inputs.power_factor} | V Limit: {inputs.voltage_limit} | Load: {load_type_display} | Type: {curve_type_display}")
         
         reply = AIMessage(content=reply_content)
         return {"messages": [reply], "results": results}
@@ -74,7 +74,7 @@ def analysis_agent(state: State, llm, prompts, retriever):
     results = state.get("results")
     if not results:
         reply = AIMessage(content="No PV curve results available for analysis.")
-        answer(reply.content)
+    
         return {"messages": [reply]}
     
     inputs = state["inputs"]
@@ -99,7 +99,7 @@ def analysis_agent(state: State, llm, prompts, retriever):
     # Show analysis completion
     info("Analysis completed")
     
-    answer(reply.content)
+
     return {"messages": [reply]}
 
 def error_handler_agent(state: State, llm, prompts):
@@ -118,7 +118,7 @@ Additional Info: {error_info.get('validation_errors', 'None')}
     
     messages = [
         {"role": "system", "content": prompts["error_handler"]["system"]},
-        {"role": "user", "content": f"Please analyze this error and provide a helpful explanation:\n\n{error_context}"}
+        {"role": "user", "content": prompts["error_handler_user"]["user"].format(error_context=error_context)}
     ]
     
     reply = llm.invoke(messages)
@@ -126,7 +126,7 @@ Additional Info: {error_info.get('validation_errors', 'None')}
     # Show error handling completion
     info(f"Error handled: {error_info.get('error_type', 'unknown')}")
     
-    answer(reply.content)
+
     return {"messages": [reply]}
 
 def compound_summary_agent(state: State):
@@ -147,5 +147,5 @@ def compound_summary_agent(state: State):
     
     info("Multi-step plan completed")
     
-    answer(reply.content)
+
     return {"messages": [reply]} 

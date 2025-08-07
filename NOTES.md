@@ -12,8 +12,8 @@ For improved RAG performance and reduced hallucinations, Markdown (`*.md`) files
 ## Methods to experiment with: 
 
 - Multiple databases
-- Explicitly addressing common hallucinations
 - Reranking results
+   - Currently not supported by Ollama?
 
 # Modelfile
 

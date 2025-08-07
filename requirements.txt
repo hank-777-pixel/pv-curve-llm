@@ -13,3 +13,6 @@ numba
 python-dotenv
 rich
 yaspin
+sentence-transformers
+torch
+huggingface-hub

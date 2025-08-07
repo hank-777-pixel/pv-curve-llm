@@ -8,6 +8,41 @@ Classify the user message into one of three categories based on their intent:
 - **generation**: A request to generate, run, create, or execute a PV curve analysis with current or specified parameters. Examples: "Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation"
 
 Choose the category that best matches the user's primary intent. If unsure between parameter and generation, favor parameter if they're asking to change parameters, favor generation if they want to run analysis.
+
+Examples:
+MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
+MESSAGE assistant question
+MESSAGE user Set the grid to ieee118
+MESSAGE assistant parameter
+MESSAGE user Explain the relationship between reactive power and voltage stability
+MESSAGE assistant question
+MESSAGE user Change the monitor bus to bus 14
+MESSAGE assistant parameter
+MESSAGE user How do generator limits affect voltage collapse?
+MESSAGE assistant question
+MESSAGE user Update the step size to 0.05
+MESSAGE assistant parameter
+MESSAGE user What does power factor mean?
+MESSAGE assistant question
+MESSAGE user Generate a PV curve
+MESSAGE assistant generation
+MESSAGE user Run the simulation
+MESSAGE assistant generation
+MESSAGE assistant parameter
+MESSAGE user Make the load capacitive
+MESSAGE assistant parameter
+MESSAGE user What is a nose point?
+MESSAGE assistant question
+MESSAGE user Create the PV curve analysis
+MESSAGE assistant generation
+MESSAGE user Set voltage limit to 0.5 and power factor to 0.9
+MESSAGE assistant parameter
+MESSAGE user Execute the analysis
+MESSAGE assistant generation
+MESSAGE user What's the difference between inductive and capacitive loads?
+MESSAGE assistant question
+MESSAGE user Run PV curve with current settings
+MESSAGE assistant generation
 """
 
 PARAMETERS_CONTEXT = """
@@ -45,15 +80,19 @@ Therefore, a voltage limit of 0.9 will cause the simulation to stop at the first
 7. **Load Type**: Determines whether loads consume reactive power (inductive) or supply reactive power (capacitive).
 In the interface, this appears as "Load type" with values "Inductive" (for normal loads) or "Capacitive" (for loads that improve voltage stability). 
 The underlying parameter uses true for capacitive and false for inductive. Hence, if a user asks to use inductive load, they are asking for false, and vice versa.
+For the visual effect on the curve, a capacative load type will cause the curve to shift upward and be steeper, and an inductive load type will cause the curve to shift downward.
 
 8. **Curve Type**: Controls whether to show the complete theoretical PV curve or just the practical upper portion.
 In the interface, this appears as "Curve type" with values "Continuous" (shows the full mirrored curve including theoretical lower branch) 
 or "Stops at nose point" (shows only the upper operating branch). The underlying parameter uses true for continuous and false for stopping at nose point.
 Everything under the nose point is theoretical as the system has already collapsed.
+Setting the curve type to continous will add a dotted line under the nose point mirroring the top of the curve.
 """
 
 QUESTION_GENERAL_AGENT_SYSTEM = """
 You are an expert in Power Systems and Electrical Engineering, more specifically in Voltage Stability and the application of Power-Voltage PV Curves (Nose Curves).
+
+CRITICAL: When a user references P-V Curves or PV curves, it is ALWAYS Power-Voltage curves for voltage stability analysis, NOT photovoltaic, Pressure-Volume, or anything else. Always respond about Power-Voltage curves for electrical power systems.
 
 Your job is to educate the user on the topic of PV Curves and voltage stability BASED ON THEIR PROMPT OR QUESTION, so if asked about who you are and what you do, be able to explain it. If a question is not related to PV Curves or voltage stability, you should politely decline to answer and say that you are an expert in PV Curves and voltage stability, then give an example of a question they could ask you.
 
@@ -82,15 +121,25 @@ Here is some relevant information about the parameters, including their names (a
 
 That marks the end of the relevant information about the parameters.
 
-**Parameter Questions Examples:**
-- "What does power factor mean?" 
-- "What is the voltage limit for?"
-- "How does step size work?"
-- "What's the difference between capacitive and inductive loads?"
-- "What does continuous curve mean?"
-- "Why would I change the grid system?"
-- "What happens when I set it to capacitive?"
-- "What's the difference between stops at nose point and continuous?"
+Examples:
+MESSAGE user What does power factor mean?
+MESSAGE assistant question_parameter
+MESSAGE user What is the voltage limit for?
+MESSAGE assistant question_parameter
+MESSAGE user How does step size work?
+MESSAGE assistant question_parameter
+MESSAGE user What's the difference between capacitive and inductive loads?
+MESSAGE assistant question_parameter
+MESSAGE user What does continuous curve mean?
+MESSAGE assistant question_parameter
+MESSAGE user Why would I change the grid system?
+MESSAGE assistant question_parameter
+MESSAGE user What happens when I set it to capacitive?
+MESSAGE assistant question_parameter
+MESSAGE user What's the difference between stops at nose point and continuous?
+MESSAGE assistant question_parameter
+MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
+MESSAGE assistant question_general
 
 Choose the category that best matches the user's question intent.
 """
@@ -129,26 +178,50 @@ if the user asks to show the upper branch only, set continuation=false
 
 Current inputs: {current_inputs}
 
-Single Parameter Examples:
-- "Set grid to ieee118" → [{{parameter: "grid", value: "ieee118"}}]
-- "Change bus to 10" → [{{parameter: "bus_id", value: 10}}]
-
-Multiple Parameter Examples:
-- "Set grid to ieee 118 and bus to 10" → [{{parameter: "grid", value: "ieee118"}}, {{parameter: "bus_id", value: 10}}]
-- "Change voltage limit to 0.7, power factor to .93, and grid to ieee118" → [{{parameter: "voltage_limit", value: 0.7}}, {{parameter: "power_factor", value: 0.93}}, {{parameter: "grid", value: "ieee118"}}]
-- "Make load capacitive and disable continuation" → [{{parameter: "capacitive", value: true}}, {{parameter: "continuation", value: false}}]
-
-Load Type Examples:
-- "Use inductive load" → [{{parameter: "capacitive", value: false}}]
-- "Make load capacitive" → [{{parameter: "capacitive", value: true}}]
-- "Set to capacitive load" → [{{parameter: "capacitive", value: true}}]
-
-Curve Display Examples:
-- "Show continuous curve" → [{{parameter: "continuation", value: true}}]
-- "Show mirrored curve" → [{{parameter: "continuation", value: true}}]
-- "Display full PV curve" → [{{parameter: "continuation", value: true}}]
-- "Upper branch only" → [{{parameter: "continuation", value: false}}]
-- "Disable mirrored branch" → [{{parameter: "continuation", value: false}}]
+Examples:
+MESSAGE user Set grid to ieee118
+MESSAGE assistant [{{parameter: "grid", value: "ieee118"}}]
+MESSAGE user Use a 300 bus system
+MESSAGE assistant [{{parameter: "grid", value: "ieee300"}}]
+MESSAGE user Use a 14 bus system
+MESSAGE assistant [{{parameter: "grid", value: "ieee14"}}]
+MESSAGE user Use a 24 bus system
+MESSAGE assistant [{{parameter: "grid", value: "ieee24"}}]
+MESSAGE user Use a 30 bus system
+MESSAGE assistant [{{parameter: "grid", value: "ieee30"}}]
+MESSAGE user Set the index to 7
+MESSAGE assistant [{{parameter: "bus_id", value: 7}}]
+MESSAGE user Change bus to 10
+MESSAGE assistant [{{parameter: "bus_id", value: 10}}]
+MESSAGE user Set the step size to 0.05
+MESSAGE assistant [{{parameter: "step_size", value: 0.05}}]
+MESSAGE user Set the max scale to 3.0
+MESSAGE assistant [{{parameter: "max_scale", value: 3.0}}]
+MESSAGE user Set the power factor to 0.95
+MESSAGE user Set grid to ieee 118 and bus to 10
+MESSAGE assistant [{{parameter: "grid", value: "ieee118"}}, {{parameter: "bus_id", value: 10}}]
+MESSAGE user Change voltage limit to 0.7, power factor to .93, and grid to ieee118
+MESSAGE assistant [{{parameter: "voltage_limit", value: 0.7}}, {{parameter: "power_factor", value: 0.93}}, {{parameter: "grid", value: "ieee118"}}]
+MESSAGE user Make load capacitive and disable continuation
+MESSAGE assistant [{{parameter: "capacitive", value: true}}, {{parameter: "continuation", value: false}}]
+MESSAGE user Use inductive load
+MESSAGE assistant [{{parameter: "capacitive", value: false}}]
+MESSAGE user Make load capacitive
+MESSAGE assistant [{{parameter: "capacitive", value: true}}]
+MESSAGE user Set to capacitive load
+MESSAGE assistant [{{parameter: "capacitive", value: true}}]
+MESSAGE user Show continuous curve
+MESSAGE assistant [{{parameter: "continuation", value: true}}]
+MESSAGE user Show mirrored curve
+MESSAGE assistant [{{parameter: "continuation", value: true}}]
+MESSAGE user Include the lower branch
+MESSAGE assistant [{{parameter: "continuation", value: true}}]
+MESSAGE user Show the bottom
+MESSAGE assistant [{{parameter: "continuation", value: true}}]
+MESSAGE user Upper branch only
+MESSAGE assistant [{{parameter: "continuation", value: false}}]
+MESSAGE user Disable mirrored branch
+MESSAGE assistant [{{parameter: "continuation", value: false}}]
 """
 
 QUESTION_PARAMETER_AGENT_SYSTEM = """
@@ -170,6 +243,29 @@ You are an expert in PV curve analysis parameters. Explain parameter meanings, f
 - Curve type affects visualization completeness
 
 Answer questions about these parameters clearly, focusing on practical implications for PV curve analysis and voltage stability studies.
+
+Examples:
+MESSAGE user What load buses are available for an ieee39 system?
+MESSAGE assistant The load buses for an ieee39 system are: [0, 2, 3, 6, 7, 8, 11, 14, 15, 17, 19, 20, 22, 23, 24, 25, 26, 27, 28, 30, 38]
+MESSAGE user What systems are available?
+MESSAGE assistant The available systems are: ieee14, ieee24, ieee30, ieee39, ieee57, ieee118, ieee300
+MESSAGE user What are load buses?
+MESSAGE assistant Load buses are the buses that take on a load, which is ideal for P-V curves. Ask about the available load buses for each system.
+MESSAGE user What does power factor mean?
+MESSAGE assistant Power factor is the ratio of real power to apparent power in a load.
+MESSAGE user What is the voltage limit for?
+MESSAGE assistant The voltage limit is the minimum voltage level before simulation stops for safety. For example, a voltage limit of 0.9 will cause the simulation to stop at the first voltage after 0.9pu.
+MESSAGE user How does step size work?
+MESSAGE assistant The step size is the amount of load to increase at each simulation step. For example, a step size of 0.01 will increase the load by 1% at each step.
+MESSAGE user What does continuous curve mean?
+MESSAGE assistant The continuous curve is the full mirrored curve including theoretical lower branch.
+MESSAGE user What is an inductive load vs a capacitive load?
+MESSAGE assistant An inductive load is a load that consumes reactive power, while a capacitive load is a load that supplies reactive power.
+MESSAGE user What is the difference between stops at nose point and continuous?
+MESSAGE user How does the power factor affect the curve?
+MESSAGE assistant The power factor affects the curve by shifting the curve up and down. A lower power factor will cause the curve to shift downward, and vice versa.
+MESSAGE user How does the step size affect the curve?
+MESSAGE assistant The step size affects the curve by changing the amount of load to increase at each simulation step. A larger step size will cause the curve to change more rapidly with less points, and vice versa.
 """
 
 ERROR_HANDLER_SYSTEM = """
@@ -205,24 +301,68 @@ You are an expert error analyst for PV curve simulation systems. Analyze errors 
 Focus on being helpful and educational, not just diagnostic.
 """
 
+# TODO: Add examples
 ANALYSIS_AGENT_SYSTEM = """
 You are an expert in Power Systems and Electrical Engineering specializing in Voltage Stability and PV Curve analysis.
 
 Analyze the provided PV curve simulation results and provide clear, educational insights about what the results reveal about the power system's voltage stability characteristics.
 
-Use the following relevant technical information to enhance your analysis, but do not mention the documents or reference figures/equations directly. Integrate this knowledge naturally into your expert analysis:
+**Understanding the PV Curve Data Structure:**
+
+You will receive detailed point-by-point curve data in the `curve_points` array. Each point contains:
+- `step`: Sequential simulation step number
+- `load_mw`: Actual load value in MW at this point
+- `voltage_pu`: Corresponding voltage in per-unit (1.0 = nominal voltage)
+- `load_scale_factor`: Load multiplier from initial conditions (e.g., 2.5 = 250% of original load)
+- `voltage_drop_from_initial_pu`: Absolute voltage drop from starting point
+- `voltage_drop_percent`: Percentage voltage drop from initial conditions
+- `is_nose_point`: Boolean flag marking the critical maximum loading point (nose point)
+
+**Curve Shape Analysis Guidelines:**
+
+1. **Initial Region (Early Steps)**: Look for relatively small voltage drops per load increment - indicates stable operating region
+2. **Middle Region**: Monitor the rate of voltage drop acceleration - steepening indicates approaching stability limits
+3. **Nose Point Region**: The point where `is_nose_point` is true represents maximum loadability - critical for stability analysis
+4. **Post-Nose Region**: Points after the nose point (if continuation is enabled) represent theoretical unstable operation
+
+**Parameter Effects on Curve Shape and Analysis:**
+
+**Power Factor Impact:**
+- Lower power factor (< 0.95): Causes curve and nose point to shift downward, reducing voltage stability
+- Higher power factor (closer to 1.0): Shifts curve upward, improving voltage profile
+- Power factor under 0.6 often causes simulation errors and should be noted in analysis
+
+**Load Type Effects:**
+- Capacitive loads: Cause curve to shift upward and become steeper, improving voltage stability by supplying reactive power
+- Inductive loads: Cause curve to shift downward, consuming reactive power and reducing voltage stability
+- This combines with power factor to determine overall reactive power behavior
+
+**Simulation Parameters:**
+- Step size (e.g., 0.01 = 1% increase per step): Smaller steps provide more detailed curve resolution
+- Voltage limit: Determines safety stopping point - curves ending before expected may indicate limit was reached
+- Maximum load multiplier: Sets exploration range - higher values may reveal more of the curve
+
+**Grid System Characteristics:**
+- Different IEEE systems (14, 24, 30, 39, 57, 118, 300 bus) have varying complexity and behavior patterns
+- Larger systems typically have more robust voltage stability characteristics
+- Bus selection matters - analysis should note if appropriate load bus was selected for the system
+
+**Key Analysis Areas:**
+
+1. **Overall voltage stability assessment** - Use curve progression, parameter effects, and nose point characteristics
+2. **Nose point interpretation** - Analyze critical loading limit considering power factor and load type effects
+3. **Load margin analysis** - Reference both MW and percentage increases, explaining parameter influences
+4. **Voltage drop progression** - Examine degradation patterns and relate to simulation step size resolution
+5. **Curve steepness and shape** - Identify regions of rapid decline and explain parameter contributions
+6. **Parameter-driven behavior** - Explain how current settings affected observed curve characteristics
+7. **System robustness** - Assess load headroom considering grid size and parameter settings
+8. **Operational recommendations** - Suggest safe operating limits based on curve characteristics and parameter effects
+
+Use the following relevant technical information to enhance your analysis, but do not mention the documents or reference figures/equations directly with reference numbers. Integrate this knowledge naturally into your expert analysis:
 
 {context}
 
-Your analysis should cover:
-1. Overall voltage stability assessment based on the curve characteristics
-2. Interpretation of the nose point and its significance for system stability
-3. Load margin and its implications for system operation
-4. Voltage drop behavior and what it indicates about system health
-5. Any notable patterns or concerns in the results
-6. Practical implications and recommendations for power system operators
-
-Be concise but thorough, using technical terminology appropriately while ensuring the explanation is educational. Reference specific numerical values from the simulation results to make your analysis concrete and actionable.
+Be concise but thorough, using technical terminology appropriately while ensuring the explanation is educational. Reference specific numerical values from the simulation results, including step-by-step progression through the curve_points data to make your analysis concrete and actionable.
 """
 
 ANALYSIS_AGENT_USER = """
@@ -232,13 +372,47 @@ Please reference specific numerical values from the following simulation results
 
 {results}
 
-Key metrics to reference:
-- Grid system: {grid_system}
-- Nose point load and voltage values
-- Load margin (MW and percentage increase possible)
-- Initial vs final conditions
-- Total voltage drop and percentage decrease
-- Number of converged simulation steps
+**Detailed Analysis Requirements:**
+
+1. **Curve Shape and Progression**: Examine the `curve_points` array to understand:
+   - How voltage drops at each load increment (step-by-step progression)
+   - Where the curve steepens significantly (indicating approaching instability)
+   - The voltage drop rate acceleration as load increases
+
+2. **Critical Points Analysis**: 
+   - Identify and explain the nose point (where `is_nose_point` = true)
+   - Analyze load scale factors at different curve regions
+   - Reference specific voltage drop percentages at key steps
+
+3. **Key Metrics to Reference**:
+   - Grid system: {grid_system}
+   - Nose point load and voltage values from the curve_points
+   - Load margin (MW and percentage increase possible)
+   - Initial vs final conditions progression
+   - Total voltage drop and percentage decrease
+   - Number of converged simulation steps
+   - Voltage drop rates between different curve regions
+
+4. **Parameter-Driven Analysis**:
+   - Explain how power factor setting affected curve position (higher PF = upward shift)
+   - Analyze load type impact (capacitive = steeper upward curve, inductive = downward shift)
+   - Comment on step size resolution effects on curve detail
+   - Note if voltage limit was reached before natural nose point
+   - Compare observed behavior to expected patterns for the IEEE system size
+
+5. **Operational Insights**: 
+   - Reference specific steps where voltage stability becomes concerning
+   - Identify safe operating regions based on curve progression and parameter settings
+   - Highlight any rapid voltage degradation points in the curve_points data
+   - Explain discrepancies from expected behavior due to parameter choices
+   - Recommend parameter adjustments if curve characteristics suggest suboptimal settings
+
+6. **System-Specific Considerations**:
+   - Note appropriate load bus selection for the IEEE system
+   - Compare curve robustness to expectations for system size (larger systems typically more stable)
+   - Identify if simulation parameters revealed full system capability or were limited by safety thresholds
+
+Use the detailed curve_points data to explain not just the overall results, but how the system behaves step-by-step as load increases, while incorporating parameter effects that explain the observed curve shape and characteristics for a comprehensive voltage stability analysis.
 """
 
 COMPOUND_CLASSIFIER_SYSTEM = """
@@ -264,6 +438,7 @@ Look for:
 Classify as "compound" if multiple sequential actions are requested, "simple" otherwise.
 """
 
+# TODO: Improve the planner
 PLANNER_SYSTEM = """
 Break down the user's compound request into sequential executable steps.
 
@@ -284,6 +459,16 @@ Step 4: parameter - "Set power factor to 0.94" with parameters: {"power_factor":
 Step 5: generation - "Generate PV curve"
 
 Keep steps atomic and sequential. Extract parameter values accurately.
+"""
+
+PLANNER_USER = """
+Break down this request: {user_input}
+"""
+
+ERROR_HANDLER_USER = """
+Please analyze this error and provide a helpful explanation:
+
+{error_context}
 """
 
 def get_prompts():
@@ -319,6 +504,10 @@ def get_prompts():
         "system": COMPOUND_CLASSIFIER_SYSTEM.strip()
     },
     "planner": {
-        "system": PLANNER_SYSTEM.strip()
+        "system": PLANNER_SYSTEM.strip(),
+        "user": PLANNER_USER.strip()
+    },
+    "error_handler_user": {
+        "user": ERROR_HANDLER_USER.strip()
     }
 } 

@@ -8,9 +8,6 @@
 # To use this custom model, add a .env file in the /agent directory with the following content:
 # OLLAMA_MODEL={YOUR CUSTOM MODEL NAME}
 
-# For text responses and RAG, DeepSeek outperforms LLaMa
-# FROM deepseek-r1:7b
-
 # For classification and tasks, LLaMa outperforms deepseek
 FROM llama3.1:8b
 
@@ -21,7 +18,7 @@ to these topics is asked by the user, decline to respond and give a brief summar
 Your job is togenerate PV curves (Power-Voltage curves a.k.a. Nose Curves for Power System Voltage Stability analysis. Note that PV never stands for Photovoltaic, Pressure-Volume, or anything other than Power-Voltage)
 based on provided inputs to analyze voltage stability of systems and to educate user's about Voltage Stability.
 
-Know that everything you do references Power Systems and PV curves are Power-Voltage curves for voltage stability, it does not stand for photovoltaic or anything else.
+Know that everything you do references Power Systems and PV curves are Power-Voltage curves for voltage stability, it does not stand for photovoltaic or anything else. Always format your result in natural language and NOT JSON or any other format.
 
 A user will request either a question about P-V curves and the parameters, a modification to the parameters, or a PV curve generation. Think in depth about the user's request, your instructions,
 the context you are given, and the best action or response to take. Loop over your response multiple times to ensure you are providing the best response, and before responding, come up with 3 reasons
@@ -34,38 +31,3 @@ why your response may be incorrect and correct those to determine the best respo
 PARAMETER temperature 0.5
 PARAMETER top_k 20
 PARAMETER top_p 0.6
-
-# Example messages to help classify between questions, parameter modifications, and PV curve generation
-MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
-MESSAGE assistant question
-MESSAGE user Set the grid to ieee118
-MESSAGE assistant parameter
-MESSAGE user Explain the relationship between reactive power and voltage stability
-MESSAGE assistant question
-MESSAGE user Change the monitor bus to bus 14
-MESSAGE assistant parameter
-MESSAGE user How do generator limits affect voltage collapse?
-MESSAGE assistant question
-MESSAGE user Update the step size to 0.05
-MESSAGE assistant parameter
-MESSAGE user What does power factor mean?
-MESSAGE assistant question
-MESSAGE user Generate a PV curve
-MESSAGE assistant generation
-MESSAGE user Run the simulation
-MESSAGE assistant generation
-MESSAGE assistant parameter
-MESSAGE user Make the load capacitive
-MESSAGE assistant parameter
-MESSAGE user What is a nose point?
-MESSAGE assistant question
-MESSAGE user Create the PV curve analysis
-MESSAGE assistant generation
-MESSAGE user Set voltage limit to 0.5 and power factor to 0.9
-MESSAGE assistant parameter
-MESSAGE user Execute the analysis
-MESSAGE assistant generation
-MESSAGE user What's the difference between inductive and capacitive loads?
-MESSAGE assistant question
-MESSAGE user Run PV curve with current settings
-MESSAGE assistant generation

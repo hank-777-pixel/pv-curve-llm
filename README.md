@@ -14,7 +14,7 @@ Using LLMs to contextualize, create, and analyze Power-Voltage Curves (Nose Curv
 ### Prerequisites
 
 - Python 3.8+
-- Ollama installed and running: https://www.ollama.com/download
+- Ollama installed: https://www.ollama.com/download
 
 ### Quick Start
 
@@ -33,6 +33,46 @@ To leave the virtual environment, enter `deactivate`.
 # Custom vector database
 
 To setup a custom vector database, see `agent/data/README.md`
+
+### File Architecture
+
+The `agent/` directory contains the core AI agent system with the following architecture:
+
+**Core Entry Points:**
+- `main.py` - Primary application entry point for local execution with terminal UI
+
+**LLM Configuration & Prompts:**
+- `Modelfile` - Ollama model configuration defining system behavior and example conversations
+- `prompts.py` / `prompts_json.py` - Structured prompt templates for different agent functions (classification, parameter handling, generation, etc.)
+
+**Data Layer:**
+- `vector_db/` - Chroma vector database storing embedded knowledge for RAG retrieval
+- `data/` - Training documents in markdown format covering power system theory and PV curve concepts
+- `vector.py` - Interface layer for vector database operations and similarity search
+- `train.py` - Script to process training data and build/update the vector database
+
+**Workflow Orchestration:**
+- `workflows/` - LangGraph workflow definitions coordinating agent behavior
+  - `compound_workflow.py` - Complex multi-step task orchestration with planning and execution
+  - `simple_workflow.py` - Basic single-step task routing and execution
+
+**Processing Nodes:**
+- `nodes/` - Individual processing units that handle specific agent functions
+  - `classifier_nodes.py` - Message classification (question/parameter/generation) and routing logic
+  - `parameter_nodes.py` - Parameter modification, validation, and state management
+  - `execution_nodes.py` - Task execution including Q&A with RAG, parameter explanations, and analysis
+
+**Data Models:**
+- `models/` - Pydantic data structures defining system state and interfaces
+  - `state_models.py` - Core state management and input parameter validation
+  - `plan_models.py` - Multi-step plan structures for complex task decomposition
+
+**Domain Logic:**
+- `pv_curve/` - Power system simulation engine using pandapower for IEEE test systems
+  - `pv_curve.py` - Core PV curve generation with voltage stability analysis
+
+**Support Utilities:**
+- `utils/common_utils.py` - Helper functions for state management and display formatting
 
 # Agent Workflow
 

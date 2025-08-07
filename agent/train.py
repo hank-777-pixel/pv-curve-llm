@@ -90,7 +90,7 @@ def process_markdown_file(file_path):
     return documents, ids
 
 def create_vector_database(db_location="./vector_db"):
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    embeddings = OllamaEmbeddings(model="mxbai-embed-large")
     
     add_documents = not os.path.exists(db_location)
 

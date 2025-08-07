@@ -82,7 +82,7 @@ def planner_agent(state: State, llm, prompts):
     
     result = planner_llm.invoke([
         {"role": "system", "content": prompts["planner"]["system"]},
-        {"role": "user", "content": f"Break down this request: {last_message.content}"}
+        {"role": "user", "content": prompts["planner"]["user"].format(user_input=last_message.content)}
     ])
     
     info(f"Plan created with {len(result.steps)} steps: {result.description}")
