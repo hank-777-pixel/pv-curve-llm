@@ -51,7 +51,21 @@ def create_simple_workflow(llm, prompts, retriever, generate_pv_curve):
     graph_builder.add_edge("question_parameter", END)
     graph_builder.add_edge("generation", "analysis")
     graph_builder.add_edge("analysis", END)
-    graph_builder.add_edge("error_handler", END)
+    # Error handling with retry
+    def route_after_error(state):
+        if state.get("retry_node"):
+            return state["retry_node"]
+        return "END"
+    
+    graph_builder.add_conditional_edges(
+        "error_handler",
+        route_after_error,
+        {
+            "parameter": "parameter",
+            "generation": "generation",
+            "END": END
+        }
+    )
     
     graph_builder.add_conditional_edges(
         "parameter",

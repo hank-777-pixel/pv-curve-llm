@@ -8,12 +8,31 @@ def question_general_agent(state: State, llm, prompts, retriever):
     with spinner("Breaking down question...") as update:
         update("Retrieving context...")
         context = retriever.invoke(last_message.content)
+        
+        conversation_context = ""
+        if state.get("conversation_history"):
+            recent_conversations = state["conversation_history"][-3:]
+            conversation_context = "\n\nRecent conversation context:\n" + "\n".join([
+                f"Previous Q: {conv['user_input']}\nPrevious A: {conv['assistant_response'][:200]}..."
+                for conv in recent_conversations
+            ])
+        
+        results_context = ""
+        if state.get("cached_results"):
+            recent_results = state["cached_results"][-2:]
+            results_context = "\n\nPrevious PV curve results for comparison:\n" + "\n".join([
+                f"Grid: {res['inputs']['grid']}, Bus: {res['inputs']['bus_id']}, PF: {res['inputs']['power_factor']}"
+                for res in recent_results
+            ])
+        
         update("Analyzing question...")
+        system_prompt = prompts["question_general_agent"]["system"].format(context=context) + conversation_context + results_context
         messages = [
-            {"role": "system", "content": prompts["question_general_agent"]["system"].format(context=context)},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompts["question_general_agent"]["user"].format(user_input=last_message.content)}
         ]
         reply = llm.invoke(messages)
+    answer(reply.content)
     return {"messages": [reply]}
 
 def question_parameter_agent(state: State, llm, prompts):
@@ -24,6 +43,7 @@ def question_parameter_agent(state: State, llm, prompts):
             {"role": "user", "content": last_message.content}
         ]
         reply = llm.invoke(messages)
+    answer(reply.content)
     return {"messages": [reply]}
 
 def generation_agent(state: State, generate_pv_curve):
@@ -67,7 +87,7 @@ def generation_agent(state: State, generate_pv_curve):
             "error_message": str(e),
             "current_inputs": inputs.model_dump(),
             "context": "PV curve simulation failed"
-        }}
+        }, "failed_node": "generation"}
 
 def analysis_agent(state: State, llm, prompts, retriever):
     info("Analyzing PV curve results...")
@@ -86,9 +106,18 @@ def analysis_agent(state: State, llm, prompts, retriever):
     
     with spinner("Retrieving analysis context...") as update:
         context = retriever.invoke(analysis_query)
+        
+        comparison_context = ""
+        if state.get("cached_results") and len(state["cached_results"]) > 1:
+            prev_results = state["cached_results"][-2:-1]
+            if prev_results:
+                prev = prev_results[0]["results"]
+                comparison_context = f"\n\nPrevious curve for comparison: Grid {prev['grid_system']}, Bus {prev['bus_monitored']}, Load margin: {prev.get('load_margin_mw', 'N/A')} MW, Nose voltage: {prev.get('nose_point_voltage_pu', 'N/A')} pu"
+        
         update("Performing analysis...")
+        system_prompt = prompts["analysis_agent"]["system"].format(context=context) + comparison_context
         messages = [
-            {"role": "system", "content": prompts["analysis_agent"]["system"].format(context=context)},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompts["analysis_agent"]["user"].format(
                 results=results,
                 grid_system=results['grid_system'].upper()
@@ -96,15 +125,43 @@ def analysis_agent(state: State, llm, prompts, retriever):
         ]
         reply = llm.invoke(messages)
     
-    # Show analysis completion
     info("Analysis completed")
+    answer(reply.content)
     
-
     return {"messages": [reply]}
 
 def error_handler_agent(state: State, llm, prompts):
     info("Handling error...")
     error_info = state.get("error_info", {})
+    retry_count = state.get("retry_count", 0)
+    failed_node = state.get("failed_node")
+    
+    if retry_count < 2 and error_info.get("error_type") in ["simulation_error", "validation_error"]:
+        info(f"Attempting retry {retry_count + 1}/2...")
+        
+        if error_info.get("error_type") == "simulation_error":
+            current_inputs = state["inputs"]
+            corrected_inputs = current_inputs.model_copy()
+            
+            error_msg = error_info.get("error_message", "").lower()
+            if "unsupported grid" in error_msg or "grid" in error_msg:
+                if "39" in error_msg:
+                    corrected_inputs = corrected_inputs.model_copy(update={"grid": "ieee39"})
+                elif "14" in error_msg:
+                    corrected_inputs = corrected_inputs.model_copy(update={"grid": "ieee14"})
+                elif "118" in error_msg:
+                    corrected_inputs = corrected_inputs.model_copy(update={"grid": "ieee118"})
+            
+            if "bus" in error_msg and "out of range" in error_msg:
+                corrected_inputs = corrected_inputs.model_copy(update={"bus_id": 0})
+            
+            info(f"Corrected parameters, retrying {failed_node}...")
+            return {
+                "inputs": corrected_inputs,
+                "retry_count": retry_count + 1,
+                "error_info": None,
+                "retry_node": failed_node
+            }
     
     error_context = f"""
 Error Type: {error_info.get('error_type', 'unknown')}
@@ -122,12 +179,9 @@ Additional Info: {error_info.get('validation_errors', 'None')}
     ]
     
     reply = llm.invoke(messages)
-    
-    # Show error handling completion
     info(f"Error handled: {error_info.get('error_type', 'unknown')}")
     
-
-    return {"messages": [reply]}
+    return {"messages": [reply], "retry_count": 0, "failed_node": None}
 
 def compound_summary_agent(state: State):
     info("Summarizing multi-step results...")

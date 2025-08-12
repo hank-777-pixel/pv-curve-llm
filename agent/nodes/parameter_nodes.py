@@ -22,7 +22,7 @@ def parameter_agent(state: State, llm, prompts):
             "user_input": last_message.content,
             "current_inputs": current_inputs.model_dump(),
             "context": "Failed to parse parameter modification request"
-        }}
+        }, "failed_node": "parameter"}
     
     try:
         updates = {}
@@ -65,7 +65,7 @@ def parameter_agent(state: State, llm, prompts):
             "current_inputs": current_inputs.model_dump(),
             "context": "Parameter validation failed",
             "validation_errors": e.errors()
-        }}
+        }, "failed_node": "parameter"}
     except ValueError as e:
         return {"error_info": {
             "error_type": "type_conversion",
@@ -73,7 +73,7 @@ def parameter_agent(state: State, llm, prompts):
             "user_input": last_message.content,
             "current_inputs": current_inputs.model_dump(),
             "context": "Failed to convert parameter value to correct type"
-        }}
+        }, "failed_node": "parameter"}
 
 def planner_agent(state: State, llm, prompts):
     info("Creating multi-step plan...")
@@ -92,7 +92,8 @@ def planner_agent(state: State, llm, prompts):
     for i, step in enumerate(result.steps, 1):
         step_desc = f"Step {i}: {step.action}"
         if step.parameters:
-            param_desc = ", ".join([f"{k}={v}" for k, v in step.parameters.items()])
+            param_dict = step.parameters.model_dump(exclude_none=True)
+            param_desc = ", ".join([f"{k}={v}" for k, v in param_dict.items()])
             step_desc += f" ({param_desc})"
         if step.content and step.content != step.action:
             step_desc += f" - {step.content}"
@@ -117,9 +118,29 @@ def step_controller(state: State):
             updates = {}
             reply_parts = []
             
-            for param, value in step.parameters.items():
+            param_dict = step.parameters.model_dump(exclude_none=True)
+            for param, value in param_dict.items():
                 converted_value = value
-                if param in ["bus_id"]:
+                if param == "grid":
+                    # Normalize grid system names
+                    value_str = str(value).lower().replace(" ", "").replace("_", "")
+                    if "14" in value_str:
+                        converted_value = "ieee14"
+                    elif "24" in value_str:
+                        converted_value = "ieee24"
+                    elif "30" in value_str:
+                        converted_value = "ieee30"
+                    elif "39" in value_str:
+                        converted_value = "ieee39"
+                    elif "57" in value_str:
+                        converted_value = "ieee57"
+                    elif "118" in value_str:
+                        converted_value = "ieee118"
+                    elif "300" in value_str:
+                        converted_value = "ieee300"
+                    else:
+                        converted_value = value  # Keep original if no match
+                elif param in ["bus_id"]:
                     converted_value = int(value)
                 elif param in ["step_size", "max_scale", "power_factor", "voltage_limit"]:
                     converted_value = float(value)

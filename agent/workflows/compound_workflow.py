@@ -132,11 +132,18 @@ def create_compound_workflow(llm, prompts, retriever, generate_pv_curve):
         }
     )
     
-    # Error handling
+    # Error handling with retry
+    def route_after_error(state):
+        if state.get("retry_node"):
+            return state["retry_node"]
+        return "advance_step" if state.get("is_compound") else "END"
+    
     graph_builder.add_conditional_edges(
         "error_handler",
-        lambda state: "advance_step" if state.get("is_compound") else "END",
+        route_after_error,
         {
+            "parameter": "parameter",
+            "generation": "generation", 
             "advance_step": "advance_step",
             "END": END
         }

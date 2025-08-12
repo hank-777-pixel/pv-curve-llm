@@ -28,4 +28,8 @@ class State(TypedDict):
     plan: Optional[Any]  # MultiStepPlan type
     current_step: int
     step_results: List[dict]
-    is_compound: bool 
+    is_compound: bool
+    retry_count: int
+    failed_node: str | None
+    conversation_history: List[dict]
+    cached_results: List[dict] 

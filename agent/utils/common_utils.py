@@ -41,7 +41,11 @@ def create_initial_state():
         "plan": None,
         "current_step": 0,
         "step_results": [],
-        "is_compound": False
+        "is_compound": False,
+        "retry_count": 0,
+        "failed_node": None,
+        "conversation_history": [],
+        "cached_results": []
     }
 
 def validate_state(state) -> dict[str, bool]:

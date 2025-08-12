@@ -576,9 +576,20 @@ PLANNER_SYSTEM = """{{
             "examples": ["Explain power factor effects", "What is voltage stability?"]
         }},
         "parameter": {{
-            "description": "Parameter modification with specific values",
+            "description": "Parameter modification with specific values using EXACT formats",
             "examples": ["Set power factor to 0.96", "Change grid to ieee118"],
-            "requirement": "Must extract specific parameter values into parameters field"
+            "requirement": "Must extract specific parameter values into parameters field using correct formats",
+            "critical_formats": {{
+                "grid": "Must be EXACTLY one of: ieee14, ieee24, ieee30, ieee39, ieee57, ieee118, ieee300",
+                "grid_mapping": {{
+                    "39 bus system": "ieee39",
+                    "14 bus": "ieee14", 
+                    "118 bus": "ieee118",
+                    "IEEE 39": "ieee39"
+                }},
+                "capacitive": "true for capacitive loads, false for inductive loads",
+                "continuation": "true for continuous curves, false for stops at nose point"
+            }}
         }},
         "generation": {{
             "description": "PV curve generation/analysis execution", 

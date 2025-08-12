@@ -178,6 +178,12 @@ if the user asks to show the upper branch only, set continuation=false
 
 Current inputs: {current_inputs}
 
+**Grid System Mapping Examples:**
+- "39 bus system" or "39 bus" or "IEEE 39" → "ieee39"
+- "14 bus system" or "14 bus" or "IEEE 14" → "ieee14"  
+- "118 bus system" or "118 bus" or "IEEE 118" → "ieee118"
+- "300 bus system" or "300 bus" or "IEEE 300" → "ieee300"
+
 Examples:
 MESSAGE user Set grid to ieee118
 MESSAGE assistant [{{parameter: "grid", value: "ieee118"}}]
@@ -189,6 +195,12 @@ MESSAGE user Use a 24 bus system
 MESSAGE assistant [{{parameter: "grid", value: "ieee24"}}]
 MESSAGE user Use a 30 bus system
 MESSAGE assistant [{{parameter: "grid", value: "ieee30"}}]
+MESSAGE user 39 bus system
+MESSAGE assistant [{{parameter: "grid", value: "ieee39"}}]
+MESSAGE user IEEE 39
+MESSAGE assistant [{{parameter: "grid", value: "ieee39"}}]
+MESSAGE user 118 bus
+MESSAGE assistant [{{parameter: "grid", value: "ieee118"}}]
 MESSAGE user Set the index to 7
 MESSAGE assistant [{{parameter: "bus_id", value: 7}}]
 MESSAGE user Change bus to 10
@@ -438,7 +450,6 @@ Look for:
 Classify as "compound" if multiple sequential actions are requested, "simple" otherwise.
 """
 
-# TODO: Improve the planner
 PLANNER_SYSTEM = """
 Break down the user's compound request into sequential executable steps.
 
@@ -447,18 +458,36 @@ Each step should be one of:
 - "parameter": Parameter modification with specific values
 - "generation": PV curve generation/analysis
 
-For parameter steps, extract the specific parameter values into the parameters field.
+For parameter steps, extract the specific parameter values into the parameters field using EXACT formats:
+
+**Critical Parameter Formats:**
+- grid: Must be EXACTLY one of: "ieee14", "ieee24", "ieee30", "ieee39", "ieee57", "ieee118", "ieee300"
+  - If user says "39 bus", "39 bus system", "IEEE 39", etc. → use "ieee39"
+  - If user says "14 bus", "14 bus system", "IEEE 14", etc. → use "ieee14"
+  - If user says "118 bus", "118 bus system", "IEEE 118", etc. → use "ieee118"
+- capacitive: true for capacitive loads, false for inductive loads
+- continuation: true for continuous curves, false for "stops at nose point"
+- power_factor: float between 0.0 and 1.0
+- bus_id: integer between 0-300
+- step_size: float between 0.001-0.1
+- max_scale: float between 1.0-10.0
+- voltage_limit: float between 0.0-1.0
+
+**Parameter Extraction Examples:**
+- "39 bus system" → grid: "ieee39"
+- "capacitive load" → capacitive: true
+- "inductive load" → capacitive: false
+- "continuous curve" → continuation: true
+- "stops at nose point" → continuation: false
+- "power factor 0.95" → power_factor: 0.95
 
 **Example breakdown:**
-"Explain power factor effects then generate curve with 0.96 power factor and 0.94 power factor"
+"Use 39 bus system with capacitive load and power factor 0.96, then generate curve"
 
-Step 1: question - "Explain power factor effects"
-Step 2: parameter - "Set power factor to 0.96" with parameters: {"power_factor": 0.96}
-Step 3: generation - "Generate PV curve"
-Step 4: parameter - "Set power factor to 0.94" with parameters: {"power_factor": 0.94}  
-Step 5: generation - "Generate PV curve"
+Step 1: parameter - "Set grid to ieee39, load type to capacitive, and power factor to 0.96" with parameters: {"grid": "ieee39", "capacitive": true, "power_factor": 0.96}
+Step 2: generation - "Generate PV curve"
 
-Keep steps atomic and sequential. Extract parameter values accurately.
+Keep steps atomic and sequential. Extract parameter values in the EXACT required formats.
 """
 
 PLANNER_USER = """

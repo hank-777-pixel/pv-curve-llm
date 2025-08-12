@@ -24,11 +24,6 @@ class SimpleRetriever:
         before = self.base_retriever.invoke(query)
         after = self.reranker.rerank(before, query)
         
-        print(f"\nRAG Debug - Query: {query[:50]}...")
-        print(f"Candidates: {CANDIDATE_VECTORS} -> {len(after)} docs")
-        print(f"Before: {[d.metadata.get('chunk_id', 'unknown')[:20] for d in before[:3]]}")
-        print(f"After:  {[d.metadata.get('chunk_id', 'unknown')[:20] for d in after[:3]]}")
-        
         return after
 
 def retriever():
