@@ -14,7 +14,6 @@ def generate_pv_curve(
     power_factor=0.95,         # Assumed constant power factor (relationship between real and reactive power)
     voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
     capacitive=False,         # Whether the power factor is capacitive or inductive (default is inductive)
-    continuation=True,        # Whether to show mirrored lower approximation
 ):
     net_map = {
         "ieee14": pn.case14,
@@ -99,11 +98,14 @@ def generate_pv_curve(
     max_p_idx = np.argmax(P_vals)
     nose_p = P_vals[max_p_idx]
     nose_v = V_vals[max_p_idx]
+    
+    
 
     # Create the plot
     plt.figure(figsize=(8, 6))
-    plt.plot(P_vals, V_vals, marker="o", linestyle="-", color="blue", label="P-V Curve")
-    plt.scatter(nose_p, nose_v, color="red", zorder=5, label="Approx. Nose Point")
+    # Upper branch (stable) from power-increase sweep
+    plt.plot(P_vals, V_vals, marker="o", linestyle="-", color="blue", label="Upper Branch")
+    plt.scatter(nose_p, nose_v, color="red", zorder=5, label="Nose Point")
     plt.annotate(
         f"P={nose_p:.1f} MW\nV={nose_v:.3f} pu",
         xy=(nose_p, nose_v),
@@ -111,32 +113,15 @@ def generate_pv_curve(
         arrowprops=dict(arrowstyle="->", color="black"),
         fontsize=9
     )
-
-    if continuation:
-        # Simulates continuation power flow, although it is not a true continuation power flow due to pandapower limitations
-        # Mirrors curve under the nose point
-        V_mirror = []
-        for v in V_vals:
-            mirrored_v = 2 * nose_v - v
-            # Clip to 0 for theoretical reasons since it can never be negative
-            if mirrored_v > 0:
-                V_mirror.append(mirrored_v)
-            else:
-                V_mirror.append(np.nan)
-
-        plt.plot(P_vals, V_mirror, linestyle="--", color="gray", label="Approx. Lower Branch (Visual)")
-
     plt.xlabel("Total Active Load P (MW)")
     plt.ylabel(f"Voltage at Bus {target_bus_idx} (pu)")
     plt.title("System P–V Curve (Voltage Stability Analysis)")
     
     # Set y-axis ticks every 0.05 for more precision
-    if continuation:
-        y_min = max(0, min(min(V_vals), min([v for v in V_mirror if not np.isnan(v)])) - 0.05)
-        y_max = max(max(V_vals), max([v for v in V_mirror if not np.isnan(v)])) + 0.05
-    else:
-        y_min = max(0, min(V_vals) - 0.05)
-        y_max = max(V_vals) + 0.05
+    y_min_candidates = [min(V_vals)]
+    y_max_candidates = [max(V_vals)]
+    y_min = max(0, min(y_min_candidates) - 0.05)
+    y_max = max(y_max_candidates) + 0.05
     y_ticks = np.arange(np.floor(y_min * 20) / 20, np.ceil(y_max * 20) / 20 + 0.05, 0.05)
     plt.yticks(y_ticks)
     
@@ -219,6 +204,5 @@ if __name__ == "__main__":
         max_scale=3.0,
         power_factor=0.95,
         voltage_limit=0.2,
-        capacitive=True,
-        continuation=True
+        capacitive=True
     )
