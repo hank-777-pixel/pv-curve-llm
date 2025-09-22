@@ -11,7 +11,7 @@ The goal of this project is to research how AI frameworks and technology can be 
 [![GitHub last commit (master)](https://img.shields.io/github/last-commit/CURENT/pv-curve-llm/master?label=last%20commit%20to%20master)](https://github.com/CURENT/pv-curve-llm/commits/master/)
 [![Visitors](https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2FCURENT%2Fpv-curve-llm&countColor=%2337d67a&style=plastic)](https://visitorbadge.io/status?path=https%3A%2F%2Fgithub.com%2FCURENT%2Fpv-curve-llm)
 
-# Installation & Run
+## Installation & Run
 
 ### Prerequisites
 
@@ -36,26 +36,26 @@ python server.py # Run web view
 
 To leave the virtual environment, enter `deactivate`.
 
-### Recommended: OpenAI instead of local Ollama
+## Using OpenAI API (Recommended)
 
 When running the application, you will be prompted to use 'openai' or 'ollama'. For improved performance, it is recommended to use OpenAI with an API key.
 
 Create `agent/.env` with `OPENAI_API_KEY=your-key` (get a key at the [OpenAI API keys page](https://platform.openai.com/api-keys)).
 
-# Custom vector database (RAG)
+## Custom vector database (RAG)
 
 To setup a custom vector database or add to the existing database, see `agent/data/README.md` for instructions.
 
-### File Architecture
+## File Architecture
 
-The `agent/` directory contains the core AI agent system with the following architecture:
+The `agent/` directory contains the core LangGraph AI agent system with the following architecture:
 
 **Core Entry Points:**
 - `main.py` - Primary application entry point for local execution with terminal UI
 
 **LLM Configuration & Prompts:**
 - `Modelfile` - Ollama model configuration defining system behavior and example conversations. Only applies to the local model.
-- `prompts.py` / `prompts_json.py` - Structured prompt templates for different agent functions (classification, parameter handling, generation, etc.)
+- `prompts.py` / `prompts_json.py` - Structured prompt templates for different agent functions. `prompts_json.py` is experimental json formatted prompts.
 
 **Data Layer:**
 - `vector_db/` - Chroma vector database storing embedded knowledge for RAG retrieval
@@ -86,6 +86,6 @@ The `agent/` directory contains the core AI agent system with the following arch
 **Support Utilities:**
 - `utils/common_utils.py` - Helper functions for state management and display formatting
 
-# License
+## License
 
 This repository is licensed under the [MIT License](./LICENSE), unless specified otherwise in subdirectories.
