@@ -23,12 +23,19 @@ Using LLMs to contextualize, create, and analyze Power-Voltage Curves (Nose Curv
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+ollama pull mxbai-embed-large  # embedding model for RAG
 ollama pull llama3.1:8b
 ollama create pv-curve -f agent\Modelfile
 python main.py
 ```
 
 To leave the virtual environment, enter `deactivate`.
+
+### Recommended: OpenAI instead of local Ollama
+
+When running the application, you will be prompted to use 'openai' or 'ollama'. For improved performance, it is recommended to use OpenAI with an API key.
+
+Create `agent/.env` with `OPENAI_API_KEY=your-key` (get a key at the [OpenAI API keys page](https://platform.openai.com/api-keys)).
 
 # Custom vector database
 

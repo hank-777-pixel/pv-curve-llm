@@ -1,27 +1,23 @@
-from contextlib import contextmanager
 from rich.console import Console
-from rich.markdown import Markdown
-from yaspin import yaspin
+from agent.output.context import set_sink, get_sink
+from agent.output.sinks import TerminalSink
+from agent.output.router import info as _info, answer as _answer, spinner as _spinner
 
 console = Console()
 _line = "-" * console.width
 
+_sink = get_sink()
+if _sink is None:
+    set_sink(TerminalSink())
+
 def divider():
     console.print(_line)
 
-
 def info(text: str):
-    console.print(f"[grey50]{text}")
-
+    _info(text)
 
 def answer(text: str):
-    console.print(Markdown(text.strip()))
+    _answer(text)
 
-
-@contextmanager
 def spinner(text: str):
-    # grey spinner with dynamic text updates
-    with yaspin(text=text, color="white") as sp:
-        def _update(new_text: str):
-            sp.text = new_text
-        yield _update
+    return _spinner(text)

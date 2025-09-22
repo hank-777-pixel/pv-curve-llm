@@ -39,6 +39,26 @@ def create_graph(provider="ollama"):
     llm, prompts, retriever = setup_dependencies(provider)
     return create_compound_workflow(llm, prompts, retriever, generate_pv_curve)
 
+# Prints the output locally
+def local_agent(graph, state, config=None):
+    if config is None:
+        config = {"recursion_limit": 50}
+    
+    new_state = graph.invoke(state, config=config)
+    
+    node_responses = []
+    if new_state.get("node_response"):
+        node_responses.append(new_state["node_response"])
+    
+    for key in new_state:
+        if key.endswith("_node_response") and new_state[key]:
+            node_responses.append(new_state[key])
+    
+    if node_responses:
+        new_state["collected_node_responses"] = node_responses
+    
+    return new_state
+
 
 def run_agent():
     print("Welcome to the PV Curve Agent! Type 'quit' or 'q' to exit.")
@@ -56,8 +76,18 @@ def run_agent():
 
     while True:
         divider()
-        print(f"Current parameters:\n{format_inputs_display(state['inputs'])}")
+        lines = format_inputs_display(state["inputs"]).splitlines()
+        req_lines = lines[:2]
+        opt_lines = lines[2:]
+        print("Current parameters:")
+        info("Required")
+        for ln in req_lines:
+            print(f"- {ln}")
+        info("Optional")
+        for ln in opt_lines:
+            print(f"- {ln}")
         divider()
+        print("Ask about any input or ask to change its value! i.e. \"What grid systems are available?\" or \"Change the grid system to a 118 bus system\"")
 
         user_input = input("\nMessage: ")
         if user_input.strip().lower() in ["quit", "q"]:
@@ -67,7 +97,7 @@ def run_agent():
         state["messages"] = state.get("messages", []) + [HumanMessage(content=user_input)]
         
         try:
-            new_state = graph.invoke(state, config={"recursion_limit": 50})
+            new_state = local_agent(graph, state, config={"recursion_limit": 50})
             
             if new_state.get("messages") and len(new_state["messages"]) > 0:
                 last_message = new_state["messages"][-1]

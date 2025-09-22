@@ -9,18 +9,18 @@ def format_inputs_display(inputs: Inputs) -> str:
         "power_factor": "Power factor",
         "voltage_limit": "Voltage threshold to stop",
         "capacitive": "Load type",
-        "continuation": "Curve type"
     }
     
     formatted_lines = []
     for param, value in inputs.model_dump().items():
+        # Skip this for now as it is being refactored later
+        if param == "continuation":
+            continue
         label = param_labels.get(param, param)
         
         # Display the parameter in a more readable format
         if param == "capacitive":
             display_value = "Capacitive" if value else "Inductive"
-        elif param == "continuation":
-            display_value = "Continuous" if value else "Stops at nose point"
         elif param == "grid":
             display_value = value.upper()
         else:
@@ -31,7 +31,6 @@ def format_inputs_display(inputs: Inputs) -> str:
     return "\n".join(formatted_lines)
 
 def create_initial_state():
-    from agent.models.state_models import Inputs
     return {
         "messages": [], 
         "message_type": None, 
