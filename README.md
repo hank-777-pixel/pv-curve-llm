@@ -4,6 +4,8 @@
 
 Using LLMs to contextualize, create, and analyze Power-Voltage Curves (Nose Curves) for Power System Voltage Stability analysis. This project experiments with AI agents and to accomplish specific tasks with natural language.
 
+The goal of this project is to research how AI frameworks and technology can be applied to power systems, experimenting with ideas and frameworks that will eventually be applied to the CURENT LTB.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/CURENT/pv-curve-llm/blob/master/LICENSE)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![GitHub last commit (master)](https://img.shields.io/github/last-commit/CURENT/pv-curve-llm/master?label=last%20commit%20to%20master)](https://github.com/CURENT/pv-curve-llm/commits/master/)
@@ -26,7 +28,10 @@ pip install -r requirements.txt
 ollama pull mxbai-embed-large  # embedding model for RAG
 ollama pull llama3.1:8b
 ollama create pv-curve -f agent\Modelfile
-python main.py
+
+python main.py # Run locally in terminal
+# or
+python server.py # Run web view
 ```
 
 To leave the virtual environment, enter `deactivate`.
@@ -37,9 +42,9 @@ When running the application, you will be prompted to use 'openai' or 'ollama'. 
 
 Create `agent/.env` with `OPENAI_API_KEY=your-key` (get a key at the [OpenAI API keys page](https://platform.openai.com/api-keys)).
 
-# Custom vector database
+# Custom vector database (RAG)
 
-To setup a custom vector database, see `agent/data/README.md`
+To setup a custom vector database or add to the existing database, see `agent/data/README.md` for instructions.
 
 ### File Architecture
 
@@ -49,7 +54,7 @@ The `agent/` directory contains the core AI agent system with the following arch
 - `main.py` - Primary application entry point for local execution with terminal UI
 
 **LLM Configuration & Prompts:**
-- `Modelfile` - Ollama model configuration defining system behavior and example conversations
+- `Modelfile` - Ollama model configuration defining system behavior and example conversations. Only applies to the local model.
 - `prompts.py` / `prompts_json.py` - Structured prompt templates for different agent functions (classification, parameter handling, generation, etc.)
 
 **Data Layer:**
@@ -80,10 +85,6 @@ The `agent/` directory contains the core AI agent system with the following arch
 
 **Support Utilities:**
 - `utils/common_utils.py` - Helper functions for state management and display formatting
-
-# Agent Workflow
-
-![Agentic Workflow Diagram](agent/workflow.png)
 
 # License
 
