@@ -2,7 +2,9 @@ from langchain_core.messages import AIMessage
 from pydantic import ValidationError
 from agent.models.state_models import State
 from agent.models.plan_models import InputModifier, MultiStepPlan
+from agent.models.response_models import NodeResponse
 from agent.terminal_ui import info, answer
+from datetime import datetime
 
 def parameter_agent(state: State, llm, prompts):
     info("Processing parameter changes...")
@@ -54,7 +56,18 @@ def parameter_agent(state: State, llm, prompts):
         answer(reply_content)
         
         reply = AIMessage(content=reply_content)
-        return {"messages": [reply], "inputs": new_inputs}
+        node_response = NodeResponse(
+            node_type="parameter",
+            success=True,
+            data={
+                "updated_parameters": list(updates.keys()),
+                "current_inputs": new_inputs.model_dump(),
+                "changes": updates
+            },
+            message=reply_content,
+            timestamp=datetime.now()
+        )
+        return {"messages": [reply], "inputs": new_inputs, "node_response": node_response}
         
     except ValidationError as e:
         error_details = [f"{error.get('loc', ['unknown'])[0]}: {error.get('msg', 'Invalid value')}" for error in e.errors()]
@@ -99,8 +112,18 @@ def planner_agent(state: State, llm, prompts):
             step_desc += f" - {step.content}"
         info(f"  {step_desc}")
     
-    
-    return {"plan": result, "current_step": 0, "step_results": []}
+    node_response = NodeResponse(
+        node_type="planner",
+        success=True,
+        data={
+            "plan_description": result.description,
+            "steps_count": len(result.steps),
+            "plan": result.model_dump()
+        },
+        message=f"Plan created with {len(result.steps)} steps: {result.description}",
+        timestamp=datetime.now()
+    )
+    return {"plan": result, "current_step": 0, "step_results": [], "node_response": node_response}
 
 def step_controller(state: State):
     plan = state.get("plan")
@@ -163,7 +186,18 @@ def step_controller(state: State):
             answer(reply_content)
             
             reply = AIMessage(content=reply_content)
-            return {"messages": [reply], "inputs": new_inputs, "next": "advance_step"}
+            node_response = NodeResponse(
+                node_type="step_controller",
+                success=True,
+                data={
+                    "step_executed": "parameter",
+                    "updated_parameters": list(updates.keys()),
+                    "current_inputs": new_inputs.model_dump()
+                },
+                message=reply_content,
+                timestamp=datetime.now()
+            )
+            return {"messages": [reply], "inputs": new_inputs, "next": "advance_step", "node_response": node_response}
             
         except Exception as e:
             return {"error_info": {
