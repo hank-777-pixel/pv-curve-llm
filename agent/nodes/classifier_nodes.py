@@ -116,7 +116,7 @@ def detect_history_reference(state: State, llm, prompts):
         prompts: Dictionary containing system prompts
         
     Returns:
-        dict: Contains needs_history flag, confidence, patterns, and context window
+        dict: Contains needs_history flag and context window
     """
     info("Detecting history references...")
     
@@ -139,19 +139,15 @@ def detect_history_reference(state: State, llm, prompts):
         success=True,
         data={
             "needs_history": result.needs_history,
-            "confidence": result.confidence,
-            "detected_patterns": result.detected_patterns,
             "context_window_size": result.context_window_size
         },
-        message=f"History detection: {result.needs_history} (confidence: {result.confidence:.2f})",
+        message=f"History detection: {result.needs_history}",
         timestamp=datetime.now()
     )
     
     # Return the detection results
     return {
         "needs_history": result.needs_history,
-        "confidence": result.confidence,
-        "detected_patterns": result.detected_patterns,
         "context_window_size": result.context_window_size,
         "node_response": node_response
     }

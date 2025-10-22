@@ -463,7 +463,6 @@ Detect if the user is referencing previous conversation, results, or context fro
 **KEYWORDS AND PATTERNS TO DETECT:**
 - Comparison words: "compare", "versus", "vs", "difference", "different", "same", "similar"
 - Temporal words: "previous", "before", "earlier", "last time", "last result", "earlier result"
-- Context words: "what was", "how was", "show me the", "give me the"
 - Continuation words: "continue", "pick up", "resume", "from before"
 
 **NON-HISTORY REFERENCES** (needs_history: false):
@@ -472,12 +471,6 @@ Detect if the user is referencing previous conversation, results, or context fro
 - General questions: "How does power factor work?"
 - First-time analysis: "Run simulation with these parameters"
 
-**CONFIDENCE SCORING:**
-- 0.9-1.0: Explicit history references ("compare with previous", "what was the last result")
-- 0.7-0.9: Strong temporal indicators ("before", "earlier", "last time")
-- 0.5-0.7: Moderate context clues ("same as", "different from")
-- 0.0-0.5: No clear history reference
-
 **CONTEXT WINDOW SIZE:**
 - Use 3-5 exchanges for most comparisons
 - Use 1-2 exchanges for simple "what was" questions
@@ -485,16 +478,16 @@ Detect if the user is referencing previous conversation, results, or context fro
 
 Examples:
 USER: "Compare this result with the previous PV curve"
-RESPONSE: needs_history=true, confidence=0.95, patterns=["compare", "previous"], context_window=3
+RESPONSE: needs_history=true, context_window=3
 
 USER: "What was the power factor in the last analysis?"
-RESPONSE: needs_history=true, confidence=0.9, patterns=["what was", "last"], context_window=2
+RESPONSE: needs_history=true, context_window=2
 
 USER: "Generate a new PV curve with power factor 0.95"
-RESPONSE: needs_history=false, confidence=0.1, patterns=[], context_window=0
+RESPONSE: needs_history=false, context_window=0
 
 USER: "How does this differ from before?"
-RESPONSE: needs_history=true, confidence=0.85, patterns=["differ", "before"], context_window=3
+RESPONSE: needs_history=true, context_window=3
 """
 
 PLANNER_SYSTEM = """

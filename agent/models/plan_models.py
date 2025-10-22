@@ -72,16 +72,6 @@ class HistoryReferenceClassifier(BaseModel):
         ...,
         description="True if the user is referencing previous conversation, results, or context"
     )
-    confidence: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Confidence score (0.0-1.0) in the history reference detection"
-    )
-    detected_patterns: List[str] = Field(
-        default_factory=list,
-        description="List of specific patterns or keywords that triggered history detection"
-    )
     context_window_size: int = Field(
         default=3,
         ge=1,
