@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from agent.models.state_models import State
-from agent.nodes.classifier_nodes import classify_compound_message, classify_message, question_classifier, enhanced_router
+from agent.nodes.classifier_nodes import classify_compound_message, classify_message, question_classifier, enhanced_router, detect_history_reference
 from agent.nodes.parameter_nodes import parameter_agent, planner_agent, step_controller, advance_step
 from agent.nodes.execution_nodes import (
     question_general_agent, 
@@ -16,6 +16,7 @@ def create_compound_workflow(llm, prompts, retriever, generate_pv_curve):
     
     # Add all nodes with dependencies injected
     graph_builder.add_node("compound_classifier", lambda state: classify_compound_message(state, llm, prompts))
+    graph_builder.add_node("history_detection", lambda state: detect_history_reference(state, llm, prompts))
     graph_builder.add_node("classifier", lambda state: classify_message(state, llm, prompts))
     graph_builder.add_node("enhanced_router", enhanced_router)
     graph_builder.add_node("planner", lambda state: planner_agent(state, llm, prompts))
@@ -33,9 +34,12 @@ def create_compound_workflow(llm, prompts, retriever, generate_pv_curve):
     # Start with compound classification
     graph_builder.add_edge(START, "compound_classifier")
     
-    # Route based on compound vs simple
+    # Always run history detection after compound classification
+    graph_builder.add_edge("compound_classifier", "history_detection")
+    
+    # Route based on compound vs simple (after history detection)
     graph_builder.add_conditional_edges(
-        "compound_classifier",
+        "history_detection",
         lambda state: "planner" if state.get("is_compound") else "classifier",
         {
             "planner": "planner",

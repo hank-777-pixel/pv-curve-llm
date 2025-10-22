@@ -1,3 +1,4 @@
+from re import L
 from typing_extensions import Literal
 from typing import Union, List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
@@ -60,4 +61,30 @@ class CompoundMessageClassifier(BaseModel):
     message_type: Literal["simple", "compound"] = Field(
         ...,
         description="Classify if the message is a simple single action or a compound multi-step request"
+    )
+
+
+class HistoryReferenceClassifier(BaseModel):
+    """Model for detecting when user references previous conversation context"""
+    model_config = ConfigDict(extra="forbid")
+    
+    needs_history: bool = Field(
+        ...,
+        description="True if the user is referencing previous conversation, results, or context"
+    )
+    confidence: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Confidence score (0.0-1.0) in the history reference detection"
+    )
+    detected_patterns: List[str] = Field(
+        default_factory=list,
+        description="List of specific patterns or keywords that triggered history detection"
+    )
+    context_window_size: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Number of previous exchanges to include in context (1-10)"
     ) 
