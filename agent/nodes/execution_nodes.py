@@ -2,6 +2,7 @@ from langchain_core.messages import AIMessage
 from agent.models.state_models import State
 from agent.models.response_models import NodeResponse
 from agent.terminal_ui import info, answer
+from agent.nodes.classifier_nodes import get_relevant_context
 from datetime import datetime
 
 def question_general_agent(state: State, llm, prompts, retriever):
@@ -9,24 +10,33 @@ def question_general_agent(state: State, llm, prompts, retriever):
     info("Retrieving context...")
     context = retriever.invoke(last_message.content)
     
+    # Check if history context is needed
+    needs_history = state.get("needs_history", False)
     conversation_context = ""
-    if state.get("conversation_history"):
-        recent_conversations = state["conversation_history"][-3:]
-        conversation_context = "\n\nRecent conversation context:\n" + "\n".join([
-            f"Previous Q: {conv['user_input']}\nPrevious A: {conv['assistant_response'][:200]}..."
-            for conv in recent_conversations
-        ])
     
-    results_context = ""
-    if state.get("cached_results"):
-        recent_results = state["cached_results"][-2:]
-        results_context = "\n\nPrevious PV curve results for comparison:\n" + "\n".join([
-            f"Grid: {res['inputs']['grid']}, Bus: {res['inputs']['bus_id']}, PF: {res['inputs']['power_factor']}"
-            for res in recent_results
-        ])
+    if needs_history and state.get("conversation_context"):
+        # Use the dynamic context window size from state
+        context_window_size = state.get("context_window_size", 3)
+        recent_exchanges = get_relevant_context(state, context_window_size)
+        conversation_context = "\n\n**Previous Conversation Context:**\n"
+        
+        for i, exchange in enumerate(recent_exchanges, 1):
+            conversation_context += f"\n**Exchange {i}:**\n"
+            conversation_context += f"User: {exchange.get('user_input', 'N/A')}\n"
+            conversation_context += f"Assistant: {exchange.get('assistant_response', 'N/A')[:200]}...\n"
+            
+            # Include parameter context if available
+            if exchange.get('inputs_state'):
+                inputs = exchange['inputs_state']
+                conversation_context += f"Parameters: Grid: {inputs.get('grid', 'N/A')}, Bus: {inputs.get('bus_id', 'N/A')}, PF: {inputs.get('power_factor', 'N/A')}\n"
+            
+            # Include results if available
+            if exchange.get('results'):
+                results = exchange['results']
+                conversation_context += f"Results: {results.get('grid_system', 'N/A')} system analysis completed\n"
     
     info("Analyzing question...")
-    system_prompt = prompts["question_general_agent"]["system"].format(context=context) + conversation_context + results_context
+    system_prompt = prompts["question_general_agent"]["system"].format(context=context) + conversation_context
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompts["question_general_agent"]["user"].format(user_input=last_message.content)}
@@ -39,8 +49,9 @@ def question_general_agent(state: State, llm, prompts, retriever):
         data={
             "response": reply.content,
             "context_retrieved": len(context),
-            "conversation_context": bool(state.get("conversation_history")),
-            "results_context": bool(state.get("cached_results"))
+            "needs_history": needs_history,
+            "conversation_context_used": bool(conversation_context),
+            "exchanges_included": len(recent_exchanges) if needs_history and recent_exchanges else 0
         },
         message=reply.content,
         timestamp=datetime.now()
@@ -50,8 +61,33 @@ def question_general_agent(state: State, llm, prompts, retriever):
 def question_parameter_agent(state: State, llm, prompts):
     last_message = state["messages"][-1]
     info("Explaining parameters...")
+    
+    # Check if history context is needed
+    needs_history = state.get("needs_history", False)
+    parameter_context = ""
+    
+    if needs_history and state.get("conversation_context"):
+        # Use the dynamic context window size from state
+        context_window_size = state.get("context_window_size", 3)
+        recent_exchanges = get_relevant_context(state, context_window_size)
+        parameter_context = "\n\n**Previous Parameter Discussions:**\n"
+        
+        for i, exchange in enumerate(recent_exchanges, 1):
+            if exchange.get('inputs_state'):
+                inputs = exchange['inputs_state']
+                parameter_context += f"\n**Previous Parameters (Exchange {i}):**\n"
+                parameter_context += f"- Grid: {inputs.get('grid', 'N/A')}\n"
+                parameter_context += f"- Bus ID: {inputs.get('bus_id', 'N/A')}\n"
+                parameter_context += f"- Power Factor: {inputs.get('power_factor', 'N/A')}\n"
+                parameter_context += f"- Step Size: {inputs.get('step_size', 'N/A')}\n"
+                parameter_context += f"- Max Scale: {inputs.get('max_scale', 'N/A')}\n"
+                parameter_context += f"- Voltage Limit: {inputs.get('voltage_limit', 'N/A')}\n"
+                parameter_context += f"- Load Type: {'Capacitive' if inputs.get('capacitive', False) else 'Inductive'}\n"
+                parameter_context += f"- Curve Type: {'Continuous' if inputs.get('continuation', True) else 'Stops at nose point'}\n"
+    
+    system_prompt = prompts["question_parameter_agent"]["system"] + parameter_context
     messages = [
-        {"role": "system", "content": prompts["question_parameter_agent"]["system"]},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": last_message.content}
     ]
     reply = llm.invoke(messages)
@@ -59,7 +95,12 @@ def question_parameter_agent(state: State, llm, prompts):
     node_response = NodeResponse(
         node_type="question_parameter",
         success=True,
-        data={"response": reply.content},
+        data={
+            "response": reply.content,
+            "needs_history": needs_history,
+            "parameter_context_used": bool(parameter_context),
+            "exchanges_included": len(recent_exchanges) if needs_history and recent_exchanges else 0
+        },
         message=reply.content,
         timestamp=datetime.now()
     )
@@ -153,8 +194,31 @@ def analysis_agent(state: State, llm, prompts, retriever):
     info("Retrieving analysis context...")
     context = retriever.invoke(analysis_query)
     
+    # Check if history context is needed for comparison
+    needs_history = state.get("needs_history", False)
     comparison_context = ""
-    if state.get("cached_results") and len(state["cached_results"]) > 1:
+    
+    if needs_history and state.get("conversation_context"):
+        # Use the dynamic context window size from state
+        context_window_size = state.get("context_window_size", 3)
+        recent_exchanges = get_relevant_context(state, context_window_size)
+        comparison_context = "\n\n**Previous Analysis Results for Comparison:**\n"
+        
+        for i, exchange in enumerate(recent_exchanges, 1):
+            if exchange.get('results'):
+                results = exchange['results']
+                inputs = exchange.get('inputs_state', {})
+                comparison_context += f"\n**Previous Analysis {i}:**\n"
+                comparison_context += f"- Grid: {results.get('grid_system', 'N/A')}\n"
+                comparison_context += f"- Bus: {results.get('bus_monitored', 'N/A')}\n"
+                comparison_context += f"- Load Margin: {results.get('load_margin_mw', 'N/A')} MW\n"
+                comparison_context += f"- Nose Point Voltage: {results.get('nose_point_voltage_pu', 'N/A')} pu\n"
+                comparison_context += f"- Power Factor: {inputs.get('power_factor', 'N/A')}\n"
+                comparison_context += f"- Load Type: {'Capacitive' if inputs.get('capacitive', False) else 'Inductive'}\n"
+                comparison_context += f"- Converged Steps: {results.get('convergence_steps', 'N/A')}\n"
+    
+    # Fallback to old cached_results if no conversation context
+    elif state.get("cached_results") and len(state["cached_results"]) > 1:
         prev_results = state["cached_results"][-2:-1]
         if prev_results:
             prev = prev_results[0]["results"]
@@ -179,7 +243,10 @@ def analysis_agent(state: State, llm, prompts, retriever):
         success=True,
         data={
             "analysis": reply.content,
-            "results_analyzed": results
+            "results_analyzed": results,
+            "needs_history": needs_history,
+            "comparison_context_used": bool(comparison_context),
+            "exchanges_included": len(recent_exchanges) if needs_history and recent_exchanges else 0
         },
         message=reply.content,
         timestamp=datetime.now()

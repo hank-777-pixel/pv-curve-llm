@@ -1,5 +1,5 @@
 from agent.models.state_models import State
-from agent.models.plan_models import MessageClassifier, QuestionClassifier, CompoundMessageClassifier
+from agent.models.plan_models import MessageClassifier, QuestionClassifier, CompoundMessageClassifier, HistoryReferenceClassifier
 from agent.models.response_models import NodeResponse
 from agent.terminal_ui import info
 from datetime import datetime
@@ -99,4 +99,82 @@ def enhanced_router(state: State):
         message=f"Enhanced routing to: {next_node}",
         timestamp=datetime.now()
     )
-    return {"next": next_node, "node_response": node_response} 
+    return {"next": next_node, "node_response": node_response}
+
+
+def detect_history_reference(state: State, llm, prompts):
+    """
+    Detect if the user is referencing previous conversation context.
+    
+    This function analyzes the current user message to determine if they are
+    referencing past conversation, results, or context. If history reference
+    is detected, it sets needs_history=True and provides context window size.
+    
+    Args:
+        state: Current state containing messages and conversation context
+        llm: Language model for structured output
+        prompts: Dictionary containing system prompts
+        
+    Returns:
+        dict: Contains needs_history flag and context window
+    """
+    info("Detecting history references...")
+    
+    # Get the last user message
+    last_message = state["messages"][-1]
+    user_input = last_message.content.lower()
+    
+    # Create structured output classifier
+    history_classifier_llm = llm.with_structured_output(HistoryReferenceClassifier)
+    
+    # Prepare the prompt with user input
+    result = history_classifier_llm.invoke([
+        {"role": "system", "content": prompts["history_detection"]["system"]},
+        {"role": "user", "content": last_message.content}
+    ])
+    
+    # Create node response for tracking
+    node_response = NodeResponse(
+        node_type="history_detection",
+        success=True,
+        data={
+            "needs_history": result.needs_history,
+            "context_window_size": result.context_window_size
+        },
+        message=f"History detection: {result.needs_history}",
+        timestamp=datetime.now()
+    )
+    
+    # Return the detection results
+    return {
+        "needs_history": result.needs_history,
+        "context_window_size": result.context_window_size,
+        "node_response": node_response
+    }
+
+
+def get_relevant_context(state: State, context_window_size: int = 3):
+    """
+    Extract relevant conversation context based on window size.
+    
+    This function retrieves the last N exchanges from conversation_context
+    to provide relevant historical context when needs_history=True.
+    
+    Args:
+        state: Current state containing conversation_context
+        context_window_size: Number of previous exchanges to include
+        
+    Returns:
+        list: List of relevant conversation exchanges
+    """
+    conversation_context = state.get("conversation_context", [])
+    
+    # Get the last N exchanges
+    if conversation_context:
+        relevant_context = conversation_context[-context_window_size:]
+    else:
+        relevant_context = []
+    
+    info(f"Retrieved {len(relevant_context)} exchanges from conversation history")
+    
+    return relevant_context 

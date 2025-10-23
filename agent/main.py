@@ -12,6 +12,8 @@ from agent.models.state_models import Inputs
 from agent.utils.common_utils import format_inputs_display, create_initial_state
 from agent.workflows.compound_workflow import create_compound_workflow
 from agent.terminal_ui import divider, info, answer
+from agent.history_manager import collect_conversation_context, create_and_save_session
+from datetime import datetime
 
 load_dotenv()
 
@@ -72,6 +74,9 @@ def run_agent():
     
     print(f"Using model: {llm._model_name}")
     
+    # Generate unique session ID using timestamp and track session start time
+    session_start_time = datetime.now()
+    session_id = f"session_{session_start_time.strftime('%Y%m%d_%H%M%S')}"
     state = create_initial_state()
 
     while True:
@@ -92,9 +97,16 @@ def run_agent():
         user_input = input("\nMessage: ")
         if user_input.strip().lower() in ["quit", "q"]:
             info("Quitting...")
+            # Save the chat session before exiting
+            create_and_save_session(state, provider, llm._model_name, session_start_time, session_id)
             break
 
         state["messages"] = state.get("messages", []) + [HumanMessage(content=user_input)]
+        
+        # Collect conversation context BEFORE running the agent
+        # This ensures history detection has access to previous exchanges
+        conversation_context = collect_conversation_context(user_input, state, max_exchanges=15)
+        state["conversation_context"] = conversation_context
         
         try:
             new_state = local_agent(graph, state, config={"recursion_limit": 50})
@@ -103,6 +115,11 @@ def run_agent():
                 last_message = new_state["messages"][-1]
                 answer(last_message.content)
                 
+                # Update conversation context with the assistant's response
+                updated_conversation_context = collect_conversation_context(user_input, new_state, max_exchanges=15)
+                new_state["conversation_context"] = updated_conversation_context
+                
+                # Keep backward compatibility with old conversation_history
                 conversation_history = state.get("conversation_history", [])
                 conversation_history.append({
                     "user_input": user_input,
@@ -111,7 +128,9 @@ def run_agent():
                 })
                 if len(conversation_history) > 10:
                     conversation_history = conversation_history[-10:]
+                new_state["conversation_history"] = conversation_history
                 
+                # Keep backward compatibility with old cached_results
                 if new_state.get("results"):
                     cached_results = state.get("cached_results", [])
                     cached_results.append({
@@ -122,8 +141,6 @@ def run_agent():
                     if len(cached_results) > 5:
                         cached_results = cached_results[-5:]
                     new_state["cached_results"] = cached_results
-                
-                new_state["conversation_history"] = conversation_history
             
             state = new_state
         except Exception as e:

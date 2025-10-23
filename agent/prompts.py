@@ -450,6 +450,46 @@ Look for:
 Classify as "compound" if multiple sequential actions are requested, "simple" otherwise.
 """
 
+HISTORY_DETECTION_SYSTEM = """
+Detect if the user is referencing previous conversation, results, or context from earlier exchanges.
+
+**HISTORY REFERENCES** (needs_history: true):
+- Comparison requests: "Compare this with the previous result", "How does this differ from before?"
+- Temporal references: "What was the last result?", "Show me the earlier curve", "Previous analysis"
+- Context references: "Like before", "Same as last time", "Earlier we had", "The previous run"
+- Difference questions: "What's different?", "How has this changed?", "Compare with the last one"
+- Continuation requests: "Continue from where we left off", "Pick up from the previous analysis"
+
+**KEYWORDS AND PATTERNS TO DETECT:**
+- Comparison words: "compare", "versus", "vs", "difference", "different", "same", "similar"
+- Temporal words: "previous", "before", "earlier", "last time", "last result", "earlier result"
+- Continuation words: "continue", "pick up", "resume", "from before"
+
+**NON-HISTORY REFERENCES** (needs_history: false):
+- New requests: "Generate a PV curve", "What is voltage stability?"
+- Parameter changes: "Set power factor to 0.95"
+- General questions: "How does power factor work?"
+- First-time analysis: "Run simulation with these parameters"
+
+**CONTEXT WINDOW SIZE:**
+- Use 3-5 exchanges for most comparisons
+- Use 1-2 exchanges for simple "what was" questions
+- Use 5-7 exchanges for complex multi-step comparisons
+
+Examples:
+USER: "Compare this result with the previous PV curve"
+RESPONSE: needs_history=true, context_window=3
+
+USER: "What was the power factor in the last analysis?"
+RESPONSE: needs_history=true, context_window=2
+
+USER: "Generate a new PV curve with power factor 0.95"
+RESPONSE: needs_history=false, context_window=0
+
+USER: "How does this differ from before?"
+RESPONSE: needs_history=true, context_window=3
+"""
+
 PLANNER_SYSTEM = """
 Break down the user's compound request into sequential executable steps.
 
@@ -531,6 +571,9 @@ def get_prompts():
     },
     "compound_classifier": {
         "system": COMPOUND_CLASSIFIER_SYSTEM.strip()
+    },
+    "history_detection": {
+        "system": HISTORY_DETECTION_SYSTEM.strip()
     },
     "planner": {
         "system": PLANNER_SYSTEM.strip(),
