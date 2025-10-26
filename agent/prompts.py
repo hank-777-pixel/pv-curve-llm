@@ -1,38 +1,39 @@
 CLASSIFIER_SYSTEM = """
-Classify the user message into one of three categories based on their intent:
+Classify the user message into one of four categories based on their intent:
 
-- **question**: A question about voltage stability, PV curves, power systems, or a request for educational information or explanations. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin"
+- **question_general**: General questions about voltage stability, PV curves, power systems, or educational information. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin", "What causes voltage collapse?"
+
+- **question_parameter**: Questions specifically about parameter meanings, functionality, or valid ranges. Examples: "What does power factor mean?", "How does step size work?", "What load buses are available?", "What's the difference between capacitive and inductive?"
 
 - **parameter**: A request to modify system parameters or settings. Examples: "Set grid to ieee118", "Change power factor to 0.9", "Use capacitive load", "Increase voltage limit". This should look as if a command is being given.
 
 - **generation**: A request to generate, run, create, or execute a PV curve analysis with current or specified parameters. Examples: "Run PV curve analysis", "Generate the curve", "Create a simulation", "Execute analysis", "Start the calculation"
 
-Choose the category that best matches the user's primary intent. If unsure between parameter and generation, favor parameter if they're asking to change parameters, favor generation if they want to run analysis.
+Choose the category that best matches the user's primary intent.
 
 Examples:
 MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
-MESSAGE assistant question
+MESSAGE assistant question_general
 MESSAGE user Set the grid to ieee118
 MESSAGE assistant parameter
 MESSAGE user Explain the relationship between reactive power and voltage stability
-MESSAGE assistant question
+MESSAGE assistant question_general
 MESSAGE user Change the monitor bus to bus 14
 MESSAGE assistant parameter
 MESSAGE user How do generator limits affect voltage collapse?
-MESSAGE assistant question
+MESSAGE assistant question_general
 MESSAGE user Update the step size to 0.05
 MESSAGE assistant parameter
 MESSAGE user What does power factor mean?
-MESSAGE assistant question
+MESSAGE assistant question_parameter
 MESSAGE user Generate a PV curve
 MESSAGE assistant generation
 MESSAGE user Run the simulation
 MESSAGE assistant generation
-MESSAGE assistant parameter
 MESSAGE user Make the load capacitive
 MESSAGE assistant parameter
 MESSAGE user What is a nose point?
-MESSAGE assistant question
+MESSAGE assistant question_general
 MESSAGE user Create the PV curve analysis
 MESSAGE assistant generation
 MESSAGE user Set voltage limit to 0.5 and power factor to 0.9
@@ -40,9 +41,13 @@ MESSAGE assistant parameter
 MESSAGE user Execute the analysis
 MESSAGE assistant generation
 MESSAGE user What's the difference between inductive and capacitive loads?
-MESSAGE assistant question
+MESSAGE assistant question_parameter
 MESSAGE user Run PV curve with current settings
 MESSAGE assistant generation
+MESSAGE user What load buses are available for ieee39?
+MESSAGE assistant question_parameter
+MESSAGE user How does step size affect the curve?
+MESSAGE assistant question_parameter
 """
 
 PARAMETERS_CONTEXT = """
@@ -109,40 +114,6 @@ QUESTION_GENERAL_AGENT_USER = """
 Here is the question to answer, be sure to keep your answer concise and ensure accuracy: {user_input}
 """
 
-QUESTION_CLASSIFIER_SYSTEM = """
-Classify the user question into one of two categories:
-
-- **question_general**: A general question about voltage stability, PV curves, power systems, electrical engineering concepts, or requesting educational information. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin", "What causes voltage collapse?"
-
-- **question_parameter**: A question specifically about what simulation parameters mean, how they work, their valid ranges, or seeking clarification about parameter functionality. If a user references one of the parameters explicitly, it is likely to be a question about the parameters.
-
-Here is some relevant information about the parameters, including their names (again, if the user references one of the parameters explicitly, it is likely to be a question about the parameters and not just a general question):
-{parameters_context}
-
-That marks the end of the relevant information about the parameters.
-
-Examples:
-MESSAGE user What does power factor mean?
-MESSAGE assistant question_parameter
-MESSAGE user What is the voltage limit for?
-MESSAGE assistant question_parameter
-MESSAGE user How does step size work?
-MESSAGE assistant question_parameter
-MESSAGE user What's the difference between capacitive and inductive loads?
-MESSAGE assistant question_parameter
-MESSAGE user What does continuous curve mean?
-MESSAGE assistant question_parameter
-MESSAGE user Why would I change the grid system?
-MESSAGE assistant question_parameter
-MESSAGE user What happens when I set it to capacitive?
-MESSAGE assistant question_parameter
-MESSAGE user What's the difference between stops at nose point and continuous?
-MESSAGE assistant question_parameter
-MESSAGE user What is a PV curve and how is it used in voltage stability analysis?
-MESSAGE assistant question_general
-
-Choose the category that best matches the user's question intent.
-"""
 
 PARAMETER_AGENT_SYSTEM = """
 Extract ALL parameters to modify from the user's request and their new values. You can modify multiple parameters in a single command.
@@ -427,68 +398,7 @@ Please reference specific numerical values from the following simulation results
 Use the detailed curve_points data to explain not just the overall results, but how the system behaves step-by-step as load increases, while incorporating parameter effects that explain the observed curve shape and characteristics for a comprehensive voltage stability analysis.
 """
 
-COMPOUND_CLASSIFIER_SYSTEM = """
-Determine if the user's message contains multiple sequential actions or is a single action request.
 
-**SIMPLE messages** (single action):
-- Single questions: "What is voltage stability?", "Explain power factor effects"
-- Single parameter changes: "Set power factor to 0.95", "Change grid to ieee118"
-- Single generation requests: "Generate a PV curve", "Run simulation"
-
-**COMPOUND messages** (multiple sequential actions):
-- Educational + simulation: "Explain power factor effects then generate a curve with capacitive load"
-- Multiple parameter changes + generation: "Set power factor to 0.96, then generate curve, then set power factor to 0.94 and generate another curve"
-- Sequential simulations: "Generate curve with 0.96 power factor and 0.94 power factor"
-- Requests with "then", "after that", "next", "and then", "also", etc.
-
-Look for:
-- Multiple distinct actions
-- Sequential connecting words ("then", "after", "next", "also")
-- Multiple parameter values mentioned for the same parameter
-- Educational request + practical request
-
-Classify as "compound" if multiple sequential actions are requested, "simple" otherwise.
-"""
-
-HISTORY_DETECTION_SYSTEM = """
-Detect if the user is referencing previous conversation, results, or context from earlier exchanges.
-
-**HISTORY REFERENCES** (needs_history: true):
-- Comparison requests: "Compare this with the previous result", "How does this differ from before?"
-- Temporal references: "What was the last result?", "Show me the earlier curve", "Previous analysis"
-- Context references: "Like before", "Same as last time", "Earlier we had", "The previous run"
-- Difference questions: "What's different?", "How has this changed?", "Compare with the last one"
-- Continuation requests: "Continue from where we left off", "Pick up from the previous analysis"
-
-**KEYWORDS AND PATTERNS TO DETECT:**
-- Comparison words: "compare", "versus", "vs", "difference", "different", "same", "similar"
-- Temporal words: "previous", "before", "earlier", "last time", "last result", "earlier result"
-- Continuation words: "continue", "pick up", "resume", "from before"
-
-**NON-HISTORY REFERENCES** (needs_history: false):
-- New requests: "Generate a PV curve", "What is voltage stability?"
-- Parameter changes: "Set power factor to 0.95"
-- General questions: "How does power factor work?"
-- First-time analysis: "Run simulation with these parameters"
-
-**CONTEXT WINDOW SIZE:**
-- Use 3-5 exchanges for most comparisons
-- Use 1-2 exchanges for simple "what was" questions
-- Use 5-7 exchanges for complex multi-step comparisons
-
-Examples:
-USER: "Compare this result with the previous PV curve"
-RESPONSE: needs_history=true, context_window=3
-
-USER: "What was the power factor in the last analysis?"
-RESPONSE: needs_history=true, context_window=2
-
-USER: "Generate a new PV curve with power factor 0.95"
-RESPONSE: needs_history=false, context_window=0
-
-USER: "How does this differ from before?"
-RESPONSE: needs_history=true, context_window=3
-"""
 
 PLANNER_SYSTEM = """
 Break down the user's compound request into sequential executable steps.
@@ -541,45 +451,32 @@ Please analyze this error and provide a helpful explanation:
 """
 
 def get_prompts():
-    """
-    Returns a dictionary of prompts for the agentic workflow.
-    Abstracted for readability and maintainability.
-    """
     return {
         "classifier": {
             "system": CLASSIFIER_SYSTEM.strip()
         },
-            "question_classifier": {
-        "system": QUESTION_CLASSIFIER_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
-    },
-    "question_general_agent": {
-        "system": QUESTION_GENERAL_AGENT_SYSTEM.strip(),
-        "user": QUESTION_GENERAL_AGENT_USER.strip()
-    },
-    "question_parameter_agent": {
-        "system": QUESTION_PARAMETER_AGENT_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
-    },
-    "parameter_agent": {
-        "system": PARAMETER_AGENT_SYSTEM.replace("{parameters_context}", PARAMETERS_CONTEXT).strip()
-    },
-    "error_handler": {
-        "system": ERROR_HANDLER_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
-    },
-            "analysis_agent": {
-        "system": ANALYSIS_AGENT_SYSTEM.strip(),
-        "user": ANALYSIS_AGENT_USER.strip()
-    },
-    "compound_classifier": {
-        "system": COMPOUND_CLASSIFIER_SYSTEM.strip()
-    },
-    "history_detection": {
-        "system": HISTORY_DETECTION_SYSTEM.strip()
-    },
-    "planner": {
-        "system": PLANNER_SYSTEM.strip(),
-        "user": PLANNER_USER.strip()
-    },
-    "error_handler_user": {
-        "user": ERROR_HANDLER_USER.strip()
-    }
-} 
+        "question_general_agent": {
+            "system": QUESTION_GENERAL_AGENT_SYSTEM.strip(),
+            "user": QUESTION_GENERAL_AGENT_USER.strip()
+        },
+        "question_parameter_agent": {
+            "system": QUESTION_PARAMETER_AGENT_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
+        },
+        "parameter_agent": {
+            "system": PARAMETER_AGENT_SYSTEM.replace("{parameters_context}", PARAMETERS_CONTEXT).strip()
+        },
+        "error_handler": {
+            "system": ERROR_HANDLER_SYSTEM.format(parameters_context=PARAMETERS_CONTEXT).strip()
+        },
+        "analysis_agent": {
+            "system": ANALYSIS_AGENT_SYSTEM.strip(),
+            "user": ANALYSIS_AGENT_USER.strip()
+        },
+        "planner": {
+            "system": PLANNER_SYSTEM.strip(),
+            "user": PLANNER_USER.strip()
+        },
+        "error_handler_user": {
+            "user": ERROR_HANDLER_USER.strip()
+        }
+    } 

@@ -1,45 +1,10 @@
-from langchain_ollama import ChatOllama
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
-from dotenv import load_dotenv
-import os
-
-from agent.vector import retriever as _make_retriever
-from agent.prompts import get_prompts
-from agent.pv_curve.pv_curve import generate_pv_curve
-
-from agent.models.state_models import Inputs
-from agent.utils.common_utils import format_inputs_display, create_initial_state
-from agent.workflows.compound_workflow import create_compound_workflow
-from agent.terminal_ui import divider, info, answer
-from agent.history_manager import collect_conversation_context, create_and_save_session
 from datetime import datetime
 
-load_dotenv()
-
-def setup_dependencies(provider="ollama"):
-    prompts = get_prompts()
-    
-    if provider == "openai":
-        llm = ChatOpenAI(
-            model="o3-mini",
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
-        llm._model_name = "o3-mini"
-    else:
-        llm = ChatOllama(
-            model=os.getenv("OLLAMA_MODEL") or "pv-curve" or "llama3.1:8b",
-            base_url="http://localhost:11434"
-        )
-        llm._model_name = llm.model
-    
-    retriever = _make_retriever()
-    
-    return llm, prompts, retriever
-
-def create_graph(provider="ollama"):
-    llm, prompts, retriever = setup_dependencies(provider)
-    return create_compound_workflow(llm, prompts, retriever, generate_pv_curve)
+from agent.core import setup_dependencies, create_graph
+from agent.utils.common_utils import format_inputs_display, create_initial_state
+from agent.terminal_ui import divider, info, answer
+from agent.history_manager import collect_conversation_context, create_and_save_session
 
 # Prints the output locally
 def local_agent(graph, state, config=None):
@@ -69,8 +34,8 @@ def run_agent():
     if provider not in ["openai", "ollama"]:
         provider = "ollama"
     
-    llm, prompts, retriever = setup_dependencies(provider)
-    graph = create_compound_workflow(llm, prompts, retriever, generate_pv_curve)
+    graph = create_graph(provider)
+    llm, _, _ = setup_dependencies(provider)
     
     print(f"Using model: {llm._model_name}")
     
@@ -103,49 +68,19 @@ def run_agent():
 
         state["messages"] = state.get("messages", []) + [HumanMessage(content=user_input)]
         
-        # Collect conversation context BEFORE running the agent
-        # This ensures history detection has access to previous exchanges
         conversation_context = collect_conversation_context(user_input, state, max_exchanges=15)
         state["conversation_context"] = conversation_context
         
-        try:
-            new_state = local_agent(graph, state, config={"recursion_limit": 50})
+        new_state = local_agent(graph, state, config={"recursion_limit": 50})
+        
+        if new_state.get("messages") and len(new_state["messages"]) > 0:
+            last_message = new_state["messages"][-1]
+            answer(last_message.content)
             
-            if new_state.get("messages") and len(new_state["messages"]) > 0:
-                last_message = new_state["messages"][-1]
-                answer(last_message.content)
-                
-                # Update conversation context with the assistant's response
-                updated_conversation_context = collect_conversation_context(user_input, new_state, max_exchanges=15)
-                new_state["conversation_context"] = updated_conversation_context
-                
-                # Keep backward compatibility with old conversation_history
-                conversation_history = state.get("conversation_history", [])
-                conversation_history.append({
-                    "user_input": user_input,
-                    "assistant_response": last_message.content,
-                    "inputs_used": new_state["inputs"].model_dump()
-                })
-                if len(conversation_history) > 10:
-                    conversation_history = conversation_history[-10:]
-                new_state["conversation_history"] = conversation_history
-                
-                # Keep backward compatibility with old cached_results
-                if new_state.get("results"):
-                    cached_results = state.get("cached_results", [])
-                    cached_results.append({
-                        "inputs": new_state["inputs"].model_dump(),
-                        "results": new_state["results"],
-                        "timestamp": user_input
-                    })
-                    if len(cached_results) > 5:
-                        cached_results = cached_results[-5:]
-                    new_state["cached_results"] = cached_results
-            
-            state = new_state
-        except Exception as e:
-            info(f"Error: {e}")
-            state["error_info"] = None
+            updated_conversation_context = collect_conversation_context(user_input, new_state, max_exchanges=15)
+            new_state["conversation_context"] = updated_conversation_context
+        
+        state = new_state
 
 if __name__ == "__main__":
     run_agent()

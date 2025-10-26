@@ -1,4 +1,4 @@
-from agent.models.state_models import Inputs
+from agent.schemas.inputs import Inputs
 
 def format_inputs_display(inputs: Inputs) -> str:
     param_labels = {
@@ -43,11 +43,7 @@ def create_initial_state():
         "is_compound": False,
         "retry_count": 0,
         "failed_node": None,
-        "conversation_history": [],
-        "cached_results": [],
-        "needs_history": False,
-        "conversation_context": [],
-        "context_window_size": 3
+        "conversation_context": []
     }
 
 def validate_state(state) -> dict[str, bool]:

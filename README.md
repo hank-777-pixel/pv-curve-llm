@@ -31,7 +31,7 @@ ollama create pv-curve -f agent\Modelfile
 
 python main.py # Run locally in terminal
 # or
-python server.py # Run web view
+python main.py server # Run web view
 ```
 
 To leave the virtual environment, enter `deactivate`.

@@ -1,19 +1,17 @@
 from typing import Dict, Any, List
 import uuid
 from langchain_core.messages import HumanMessage
-from agent.main import setup_dependencies
-from agent.workflows.compound_workflow import create_compound_workflow
-from agent.models.response_models import ConversationResponse, NodeResponse
+from agent.core import setup_dependencies, create_graph
+from agent.schemas.api import ConversationResponse
+from agent.schemas.response import NodeResponse
 from agent.utils.common_utils import create_initial_state
-from agent.pv_curve.pv_curve import generate_pv_curve
 from agent.output.sinks import MemorySink
 from agent.output.context import set_sink, get_sink
 
 class LangGraphAPIManager:
     def __init__(self, provider="ollama"):
         self.provider = provider
-        llm, prompts, retriever = setup_dependencies(provider)
-        self.graph = create_compound_workflow(llm, prompts, retriever, generate_pv_curve)
+        self.graph = create_graph(provider)
         self.active_sessions: Dict[str, Dict] = {}
     
     def process_message(self, message: str, session_id: str = None) -> ConversationResponse:
@@ -70,8 +68,6 @@ class LangGraphAPIManager:
         """Convert state to API-friendly format"""
         return {
             "inputs": state["inputs"].model_dump(),
-            "conversation_history": state.get("conversation_history", []),
-            "cached_results": state.get("cached_results", []),
             "current_step": state.get("current_step", 0),
             "is_compound": state.get("is_compound", False),
             "step_results": state.get("step_results", []),
@@ -95,8 +91,7 @@ class LangGraphAPIManager:
         if not inputs.capacitive:
             suggestions.append("Switch to capacitive load")
         
-        # Conversation-based suggestions
-        if state.get("conversation_history"):
+        if state.get("conversation_context"):
             suggestions.append("Ask about voltage stability")
             suggestions.append("Compare with different parameters")
         

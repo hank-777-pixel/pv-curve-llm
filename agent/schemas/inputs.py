@@ -1,0 +1,18 @@
+from typing_extensions import Literal
+from pydantic import BaseModel, Field, ConfigDict
+
+GridSystem = Literal["ieee14", "ieee24", "ieee30", "ieee39", "ieee57", "ieee118", "ieee300"]
+InputParameter = Literal["grid", "bus_id", "step_size", "max_scale", "power_factor", "voltage_limit", "capacitive", "continuation"]
+
+class Inputs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    grid: GridSystem = "ieee39"
+    bus_id: int = Field(default=5, ge=0, le=300)
+    step_size: float = Field(default=0.01, gt=0, le=0.1)
+    max_scale: float = Field(default=3.0, gt=1.0, le=10.0)
+    power_factor: float = Field(default=0.95, gt=0, le=1.0)
+    voltage_limit: float = Field(default=0.4, gt=0, le=1.0)
+    capacitive: bool = Field(default=False)
+    continuation: bool = Field(default=True)
+
