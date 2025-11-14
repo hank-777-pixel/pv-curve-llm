@@ -56,55 +56,6 @@ class BaseSink:
             )
 
 
-class MemorySink(BaseSink):
-    def __init__(self):
-        self._events: List[ProgressEvent] = []
-
-    def emit(self, event: ProgressEvent) -> None:
-        self._events.append(event)
-
-    def get_events(self) -> List[dict]:
-        # Convert datetimes to ISO strings and include compatibility keys
-        events = []
-        for e in self._events:
-            d = e.model_dump()
-            d["ts"] = e.ts.isoformat()
-            # Back-compat for previous web payloads
-            if "text" in d and d.get("text") is not None:
-                d["message"] = d.get("text")
-            d["timestamp"] = d["ts"]
-            events.append(d)
-        return events
-
-    def clear(self) -> None:
-        self._events = []
-
-
-class CompositeSink(BaseSink):
-    def __init__(self, sinks: List[BaseSink]):
-        self._sinks = sinks
-
-    def emit(self, event: ProgressEvent) -> None:
-        for sink in self._sinks:
-            sink.emit(event)
-
-    @contextmanager
-    def spinner(self, text: str):
-        managers = [sink.spinner(text) for sink in self._sinks]
-        exits = []
-        try:
-            updates = [mgr.__enter__() for mgr in managers]
-
-            def update(new_text: str):
-                for fn in updates:
-                    fn(new_text)
-
-            yield update
-        finally:
-            for mgr in managers:
-                mgr.__exit__(None, None, None)
-
-
 class TerminalSink(BaseSink):
     def __init__(self):
         from rich.console import Console
