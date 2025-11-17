@@ -153,7 +153,7 @@ Each node receives state, performs its function, and returns state updates.
 
 ### Prerequisites
 
-- **Python**: 3.8 or higher
+- **Python**: 3.12 or higher
 - **Ollama**: Required for local models ([Download](https://ollama.com/download))
 - **Git**: For cloning repository
 
