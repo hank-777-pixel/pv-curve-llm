@@ -22,7 +22,7 @@ This is another chunk of data.
 ```
 
 This is automatically embedded into the vector database based on this format.
-Run `../train.py` locally to retrain the RAG agent.
+Run `agent/train.py` from the project root to retrain the RAG agent.
 
 ## TODO
 

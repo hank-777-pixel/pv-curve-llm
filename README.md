@@ -46,10 +46,11 @@ To setup a custom vector database or add to the existing database, see `agent/da
 
 ## File Architecture
 
-The `agent/` directory contains the core LangGraph AI agent system with the following architecture:
+**Root Entry Points:**
+- `main.py` - Root entry point that launches the CLI interface
+- `cli.py` - Rich-based CLI interface with streaming updates and enhanced UI
 
-**Core Entry Points:**
-- `main.py` - Primary application entry point for local execution with terminal UI
+The `agent/` directory contains the core LangGraph AI agent system with the following architecture:
 
 **LLM Configuration & Prompts:**
 - `Modelfile` - Ollama model configuration defining system behavior and example conversations. Only applies to the local model.
@@ -63,19 +64,33 @@ The `agent/` directory contains the core LangGraph AI agent system with the foll
 
 **Workflow Orchestration:**
 - `workflows/` - LangGraph workflow definitions coordinating agent behavior
-  - `compound_workflow.py` - Complex multi-step task orchestration with planning and execution
-  - `simple_workflow.py` - Basic single-step task routing and execution
+  - `workflow.py` - Unified workflow handling both simple and complex multi-step tasks with planning, execution, and error handling
 
 **Processing Nodes:**
 - `nodes/` - Individual processing units that handle specific agent functions
-  - `classifier_nodes.py` - Message classification (question/parameter/generation) and routing logic
-  - `parameter_nodes.py` - Parameter modification, validation, and state management
-  - `execution_nodes.py` - Task execution including Q&A with RAG, parameter explanations, and analysis
+  - `classify.py` - Message classification and type detection
+  - `route.py` - Routing logic to direct messages to appropriate handlers
+  - `question_general.py` - General Q&A with RAG retrieval for power system knowledge
+  - `question_parameter.py` - Parameter-specific Q&A and explanations
+  - `parameter.py` - Parameter modification, validation, and state management
+  - `generation.py` - PV curve generation task execution
+  - `planner.py` - Multi-step plan creation and decomposition
+  - `step_controller.py` - Step execution control for compound tasks
+  - `advance_step.py` - Step advancement logic for multi-step workflows
+  - `summary.py` - Summary generation for completed tasks
+  - `error_handler.py` - Error handling and retry logic
 
 **Data Models:**
-- `models/` - Pydantic data structures defining system state and interfaces
-  - `state_models.py` - Core state management and input parameter validation
-  - `plan_models.py` - Multi-step plan structures for complex task decomposition
+- `state/` - State management definitions
+  - `app_state.py` - Core State TypedDict defining the agent's state structure
+- `schemas/` - Pydantic data structures defining system interfaces
+  - `classifier.py` - Classification schema definitions
+  - `inputs.py` - Input parameter validation schemas
+  - `parameter.py` - Parameter modification schemas
+  - `planner.py` - Multi-step plan structures for complex task decomposition
+  - `response.py` - Response format schemas
+  - `session.py` - Session management schemas
+- `session.py` - SessionManager class for managing agent sessions and streaming execution
 
 **Domain Logic:**
 - `pv_curve/` - Power system simulation engine using pandapower for IEEE test systems
@@ -83,6 +98,10 @@ The `agent/` directory contains the core LangGraph AI agent system with the foll
 
 **Support Utilities:**
 - `utils/common_utils.py` - Helper functions for state management and display formatting
+- `utils/context.py` - Context management utilities
+- `utils/reranker.py` - Reranking utilities for RAG retrieval
+- `history_manager.py` - Conversation history management and session persistence
+- `core.py` - Core setup functions for LLM, prompts, and graph creation
 
 ## License
 
