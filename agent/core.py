@@ -16,10 +16,10 @@ def setup_dependencies(provider="ollama"):
 
     if provider == "openai":
         llm = ChatOpenAI(
-            model="o3-mini",
+            model="gpt-5-mini-2025-08-07",
             api_key=os.getenv("OPENAI_API_KEY")
         )
-        llm._model_name = "o3-mini"
+        llm._model_name = "gpt-5-mini-2025-08-07"
     else:
         llm = ChatOllama(
             model=os.getenv("OLLAMA_MODEL") or "pv-curve" or "llama3.1:8b",
