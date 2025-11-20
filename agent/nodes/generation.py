@@ -1,9 +1,11 @@
 from langchain_core.messages import AIMessage
+from rich.console import Console
 from agent.state.app_state import State
 from agent.schemas.response import NodeResponse
 from agent.utils.context import get_conversation_context
 from datetime import datetime
 
+console = Console()
 def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
     inputs = state["inputs"]
     
@@ -51,7 +53,8 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
                 comparison_context += f"- Power Factor: {prev_inputs.get('power_factor', 'N/A')}\n"
                 comparison_context += f"- Load Type: {'Capacitive' if prev_inputs.get('capacitive', False) else 'Inductive'}\n"
                 comparison_context += f"- Converged Steps: {prev_results.get('convergence_steps', 'N/A')}\n"
-    
+
+    console.print(f"[grey50]→ Analyzing results and generating summary...")
     system_prompt = prompts["analysis_agent"]["system"].format(context=context) + comparison_context
     messages = [
         {"role": "system", "content": system_prompt},
