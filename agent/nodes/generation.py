@@ -1,12 +1,14 @@
 from langchain_core.messages import AIMessage
-from rich.console import Console
 from agent.state.app_state import State
 from agent.schemas.response import NodeResponse
 from agent.utils.context import get_conversation_context
+from agent.utils.display import display_executing_node, console
 from datetime import datetime
 
-console = Console()
 def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
+    
+    display_executing_node("generation")
+    
     inputs = state["inputs"]
     
     results = generate_pv_curve(

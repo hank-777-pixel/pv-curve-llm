@@ -2,8 +2,12 @@ from agent.state.app_state import State
 from agent.schemas.planner import MultiStepPlan
 from agent.schemas.response import NodeResponse
 from datetime import datetime
+from agent.utils.display import display_executing_node
 
 def planner_agent(state: State, llm, prompts):
+    
+    display_executing_node("planner")
+    
     last_message = state["messages"][-1]
     planner_llm = llm.with_structured_output(MultiStepPlan)
     
