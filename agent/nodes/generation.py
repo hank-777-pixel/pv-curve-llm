@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage
 from agent.state.app_state import State
 from agent.schemas.response import NodeResponse
+from agent.schemas.parameter import InputModifier
 from agent.utils.context import get_conversation_context
 from agent.utils.display import display_executing_node, console
 from datetime import datetime
@@ -10,6 +11,35 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
     display_executing_node("generation")
     
     inputs = state["inputs"]
+    last_message = state["messages"][-1]
+    
+    # Extract parameters from user's message if they're present
+    # This allows "generate pv curve that power factor is 0.9" to work
+    modifier_llm = llm.with_structured_output(InputModifier)
+    result = modifier_llm.invoke([
+        {"role": "system", "content": prompts["parameter_agent"]["system"].format(current_inputs=inputs)},
+        {"role": "user", "content": last_message.content}
+    ])
+    
+    # Update inputs if parameters were found in the message
+    if result.modifications:
+        updates = {}
+        for modification in result.modifications:
+            converted_value = modification.value
+            if modification.parameter in ["bus_id"]:
+                converted_value = int(modification.value)
+            elif modification.parameter in ["step_size", "max_scale", "power_factor", "voltage_limit"]:
+                converted_value = float(modification.value)
+            elif modification.parameter in ["capacitive", "continuation"]:
+                if isinstance(modification.value, str):
+                    converted_value = modification.value.lower() in ["true", "yes", "1", "on"]
+                else:
+                    converted_value = bool(modification.value)
+            
+            updates[modification.parameter] = converted_value
+        
+        # Update inputs with extracted parameters
+        inputs = inputs.model_copy(update=updates)
     
     results = generate_pv_curve(
         grid=inputs.grid,
@@ -90,5 +120,9 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
             "convergence_steps": results["converged_steps"]
         }
     )
-    return {"messages": [reply], "results": results, "node_response": node_response}
+    # Return updated inputs if they were modified
+    return_value = {"messages": [reply], "results": results, "node_response": node_response}
+    if result.modifications:
+        return_value["inputs"] = inputs
+    return return_value
 

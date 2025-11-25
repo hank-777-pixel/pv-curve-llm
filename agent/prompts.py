@@ -205,6 +205,30 @@ MESSAGE user Upper branch only
 MESSAGE assistant [{{parameter: "continuation", value: false}}]
 MESSAGE user Disable mirrored branch
 MESSAGE assistant [{{parameter: "continuation", value: false}}]
+MESSAGE user Generate PV curve with power factor 0.9
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}]
+MESSAGE user Generate pv curve that power factor is 0.9
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}]
+MESSAGE user Create a PV curve for ieee118 with bus 10
+MESSAGE assistant [{{parameter: "grid", value: "ieee118"}}, {{parameter: "bus_id", value: 10}}]
+MESSAGE user Run simulation with power factor 0.85 and capacitive load
+MESSAGE assistant [{{parameter: "power_factor", value: 0.85}}, {{parameter: "capacitive", value: true}}]
+MESSAGE user Generate curve using ieee39 system and power factor 0.92
+MESSAGE assistant [{{parameter: "grid", value: "ieee39"}}, {{parameter: "power_factor", value: 0.92}}]
+MESSAGE user Create curve that power factor is 0.9 and bus is 10
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}, {{parameter: "bus_id", value: 10}}]
+MESSAGE user Generate curve that uses power factor 0.9 that has bus 10
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}, {{parameter: "bus_id", value: 10}}]
+MESSAGE user Change parameter that power factor is 0.9
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}]
+MESSAGE user Change the parameter that pf is 0.9
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}]
+MESSAGE user Generate curve that shows power factor of 0.9
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}]
+MESSAGE user Generate curve that uses ieee118 that has bus 10
+MESSAGE assistant [{{parameter: "grid", value: "ieee118"}}, {{parameter: "bus_id", value: 10}}]
+MESSAGE user Generate PV curve that power factor is 0.9 that uses capacitive load
+MESSAGE assistant [{{parameter: "power_factor", value: 0.9}}, {{parameter: "capacitive", value: true}}]
 """
 
 QUESTION_PARAMETER_AGENT_SYSTEM = """
