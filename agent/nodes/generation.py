@@ -67,7 +67,7 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
     
     context = retriever.invoke(analysis_query)
     
-    recent_exchanges = get_conversation_context(state, max_exchanges=3)
+    recent_exchanges = get_conversation_context(state, max_exchanges=5)
     comparison_context = ""
     
     if recent_exchanges:

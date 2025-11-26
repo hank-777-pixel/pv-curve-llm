@@ -1,7 +1,7 @@
 CLASSIFIER_SYSTEM = """
 Classify the user message into one of four categories based on their intent:
 
-- **question_general**: General questions about voltage stability, PV curves, power systems, or educational information. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin", "What causes voltage collapse?"
+- **question_general**: General questions about voltage stability, PV curves, power systems, educational information, or requests to compare/analyze previous results. Examples: "What is a nose point?", "How does voltage stability work?", "Explain load margin", "What causes voltage collapse?", "Compare the previous two results", "Compare results from bus 5 and bus 10"
 
 - **question_parameter**: Questions specifically about parameter meanings, functionality, or valid ranges. Examples: "What does power factor mean?", "How does step size work?", "What load buses are available?", "What's the difference between capacitive and inductive?"
 
@@ -48,6 +48,20 @@ MESSAGE user What load buses are available for ieee39?
 MESSAGE assistant question_parameter
 MESSAGE user How does step size affect the curve?
 MESSAGE assistant question_parameter
+MESSAGE user Compare the previous two results
+MESSAGE assistant question_general
+MESSAGE user Compare two results
+MESSAGE assistant question_general
+MESSAGE user Compare previous results
+MESSAGE assistant question_general
+MESSAGE user Compare results from bus 5 and bus 10
+MESSAGE assistant question_general
+MESSAGE user Show me a comparison of the last two PV curves
+MESSAGE assistant question_general
+MESSAGE user Compare the PV curves I generated
+MESSAGE assistant question_general
+MESSAGE user What's the difference between the last two analyses?
+MESSAGE assistant question_general
 """
 
 PARAMETERS_CONTEXT = """
@@ -100,6 +114,8 @@ You are an expert in Power Systems and Electrical Engineering, more specifically
 CRITICAL: When a user references P-V Curves or PV curves, it is ALWAYS Power-Voltage curves for voltage stability analysis, NOT photovoltaic, Pressure-Volume, or anything else. Always respond about Power-Voltage curves for electrical power systems.
 
 Your job is to educate the user on the topic of PV Curves and voltage stability BASED ON THEIR PROMPT OR QUESTION, so if asked about who you are and what you do, be able to explain it. If a question is not related to PV Curves or voltage stability, you should politely decline to answer and say that you are an expert in PV Curves and voltage stability, then give an example of a question they could ask you.
+
+IMPORTANT: If the user asks to compare previous results or analyses, use the conversation context provided below to compare the different PV curve analyses. Compare key metrics like load margin, nose point voltage, power factor, bus locations, and explain the differences and their implications for voltage stability.
 
 Here is some relevant information about PV Curves and voltage stability, use this information and reference it in your answer, but do not mention the documents or the exact location in the documents it is from. Do not reference any figures (i.e. Figure 1.1, etc.) or references to places such as (Equation 1.4, etc.) in your answer, and if documents reference other parts of documents, that is for your understanding and only your deductions should be included in your answer. Again, the user should have no idea where the information is from or that you are pulling information from somewhere, it should just know the answer as if you are the expert explaining it.
 
