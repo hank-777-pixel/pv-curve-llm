@@ -10,7 +10,7 @@ from agent.workflows.workflow import create_workflow
 
 load_dotenv()
 
-def setup_dependencies(provider="ollama"):
+def setup_dependencies(provider="openai"):
     """Setup LLM, prompts, and retriever based on provider."""
     prompts = get_prompts()
 

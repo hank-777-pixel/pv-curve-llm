@@ -29,9 +29,14 @@ def generate_pv_curve(
         raise ValueError(f"Unsupported grid '{grid}'. Choose from {list(net_map)}")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_path = f"generated/pv_curve_{grid}_{timestamp}.png"
-    
-    os.makedirs("generated", exist_ok=True)
+
+    # Choose output directory:
+    # 1) If PV_CURVE_OUTPUT_DIR is set, use that
+    # 2) Otherwise fall back to "generated" (CLI behavior stays the same)
+    output_dir = os.getenv("PV_CURVE_OUTPUT_DIR") or "generated"
+    os.makedirs(output_dir, exist_ok=True)
+
+    save_path = os.path.join(output_dir, f"pv_curve_{grid}_{timestamp}.png")
 
     net = net_map[grid]()
 
@@ -95,7 +100,7 @@ def generate_pv_curve(
     P_vals, V_vals = zip(*results)
 
     # Find point with maximum load (approximate nose point of the curve)
-    max_p_idx = np.argmax(P_vals)
+    max_p_idx = int(np.argmax(P_vals))  # Convert to Python int for JSON serialization
     nose_p = P_vals[max_p_idx]
     nose_v = V_vals[max_p_idx]
     
@@ -130,10 +135,18 @@ def generate_pv_curve(
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     
     print(f"P-V curve successfully generated and saved at: {save_path}")
-    print("Displaying curve preview - close the plot window to continue analysis...")
-    
-    plt.show()
-    plt.close()
+
+    # Check if we're in MCP context
+    skip_show = os.getenv("PV_CURVE_SKIP_SHOW", "0") == "1"
+
+    if not skip_show:
+        print("Displaying curve preview - close the plot window to continue analysis...")
+        plt.show()  # CLI: blocking (waits for window close)
+        plt.close()
+    else:
+        # MCP mode: File already saved, skip all GUI operations
+        print("Plot saved (MCP mode, skipping interactive display - use file:// URL to view)")
+        # Don't call plt.close() - let it be garbage collected to avoid any GUI interaction
 
     # Add points and details of shape for the LLM to better understand the curve
     curve_points = []
@@ -152,7 +165,7 @@ def generate_pv_curve(
             "load_scale_factor": float(load_scale),
             "voltage_drop_from_initial_pu": float(voltage_drop_from_initial),
             "voltage_drop_percent": float(voltage_drop_percent),
-            "is_nose_point": i == max_p_idx
+            "is_nose_point": bool(i == max_p_idx)  # Convert to Python bool for JSON serialization
         })
 
     results_summary = {
