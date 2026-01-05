@@ -32,6 +32,9 @@ def router(state: State):
     elif message_type == "generation":
         next_node = "generation"
         is_compound = False
+    elif message_type == "analysis":
+        next_node = "analysis"
+        is_compound = False
     else:
         next_node = "question_general"
         is_compound = False

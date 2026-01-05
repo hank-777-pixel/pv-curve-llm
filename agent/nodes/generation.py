@@ -2,7 +2,6 @@ from langchain_core.messages import AIMessage
 from agent.state.app_state import State
 from agent.schemas.response import NodeResponse
 from agent.schemas.parameter import InputModifier
-from agent.utils.context import get_conversation_context
 from agent.utils.display import display_executing_node, console
 from datetime import datetime
 import json
@@ -41,6 +40,10 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
         # Update inputs with extracted parameters
         inputs = inputs.model_copy(update=updates)
     
+<<<<<<< HEAD
+=======
+    # Generate PV curve with plot (skip_plot=False by default)
+>>>>>>> 848daa2 (seperate generate curve and analysis into two seperate node)
     results = generate_pv_curve(
         grid=inputs.grid,
         target_bus_idx=inputs.bus_id,
@@ -49,6 +52,7 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
         power_factor=inputs.power_factor,
         voltage_limit=inputs.voltage_limit,
         capacitive=inputs.capacitive,
+        skip_plot=False,  # Generate the visual graph
     )
     
     load_type = "capacitive" if inputs.capacitive else "inductive"
@@ -59,6 +63,7 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
         f"Plot saved to {results['save_path']}"
     )
     
+<<<<<<< HEAD
     analysis_query = (
         f"PV curve voltage stability analysis nose point load margin "
         f"voltage drop {inputs.grid} power system stability assessment "
@@ -146,6 +151,10 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
     
     combined_content = f"{generation_content}\n\n{analysis_reply.content}"
     reply = AIMessage(content=combined_content)
+=======
+    # No analysis here - just generation
+    reply = AIMessage(content=generation_content)
+>>>>>>> 848daa2 (seperate generate curve and analysis into two seperate node)
     
     node_response = NodeResponse(
         node_type="generation",
@@ -156,11 +165,8 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
             "bus_monitored": inputs.bus_id,
             "load_margin_mw": results.get("load_margin_mw"),
             "nose_point_voltage_pu": results.get("nose_point", {}).get("voltage_pu"),
-            "analysis": analysis_reply.content,
-            "comparison_context_used": bool(comparison_context),
-            "exchanges_included": len(recent_exchanges)
         },
-        message=combined_content,
+        message=generation_content,
         timestamp=datetime.now(),
         metadata={
             "plot_path": results["save_path"],
