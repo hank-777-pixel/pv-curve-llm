@@ -10,7 +10,11 @@ from agent.workflows.workflow import create_workflow
 
 load_dotenv()
 
+<<<<<<< HEAD
 def setup_dependencies(provider="openai"):
+=======
+def setup_dependencies(provider="ollama"):
+>>>>>>> 09e35b4 (merge from master)
     """Setup LLM, prompts, and retriever based on provider."""
     prompts = get_prompts()
 
@@ -23,7 +27,12 @@ def setup_dependencies(provider="openai"):
     else:
         llm = ChatOllama(
             model=os.getenv("OLLAMA_MODEL") or "pv-curve" or "llama3.1:8b",
+<<<<<<< HEAD
             base_url="http://localhost:11434"
+=======
+            base_url="http://localhost:11434",
+            timeout=300.0  # Increase timeout to 5 minutes for long-running analysis
+>>>>>>> 09e35b4 (merge from master)
         )
         llm._model_name = llm.model
 

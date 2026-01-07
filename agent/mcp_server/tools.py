@@ -248,7 +248,13 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
             state["messages"].append(HumanMessage(content=user_message))
         
         # Call the original node function
+<<<<<<< HEAD
         updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
+=======
+        print(f"DEBUG: About to call generation_agent")
+        updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
+        print(f"DEBUG: generation_agent completed")
+>>>>>>> 09e35b4 (merge from master)
         
         # Update state
         state_manager.update_state(session_id, updates)
