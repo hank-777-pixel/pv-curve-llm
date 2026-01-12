@@ -16,6 +16,7 @@ from agent.nodes.question_general import question_general_agent
 from agent.nodes.question_parameter import question_parameter_agent
 from agent.nodes.parameter import parameter_agent
 from agent.nodes.generation import generation_agent
+from agent.nodes.analysis import analysis_agent
 from agent.nodes.planner import planner_agent
 from agent.nodes.step_controller import step_controller
 from agent.nodes.advance_step import advance_step
@@ -23,13 +24,12 @@ from agent.nodes.error_handler import error_handler_agent
 from agent.nodes.summary import summary_agent
 
 # Initialize dependencies once (shared across all tools)
-# This is more efficient than creating them for each tool call
 _llm, _prompts, _retriever = setup_dependencies("ollama")
 
 
 def classify_message_tool(user_message: str, session_id: str) -> Dict[str, Any]:
     """
-    Classify user message into one of: question_general, question_parameter, parameter, generation.
+    Classify user message into one of: question_general, question_parameter, parameter, generation, analysis.
     
     Args:
         user_message: The user's input message to classify
@@ -209,16 +209,17 @@ def modify_parameters_tool(user_message: str, session_id: str) -> Dict[str, Any]
 
 def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]:
     """
-    Generate PV curve analysis for the current system configuration.
+    Generate PV curve with visual plot for the current system configuration.
     
     Args:
         user_message: User's generation request (optional, can include parameters)
         session_id: Unique session identifier
         
     Returns:
-        Dict with PV curve results and updated state
+        Dict with PV curve results, image file URL, and updated state
     """
     try:
+<<<<<<< HEAD
         # Auto-detect writable directory for Claude Desktop if env var not set
         if not os.getenv("PV_CURVE_OUTPUT_DIR"):
             # Try to use project's generated folder first (if writable)
@@ -238,6 +239,33 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         # Set flag to skip blocking plt.show() in MCP context (avoids hanging)
         os.environ["PV_CURVE_SKIP_SHOW"] = "1"
         
+=======
+        # Set flag to skip blocking plt.show() in MCP context
+        os.environ["PV_CURVE_SKIP_SHOW"] = "1"
+        
+        # Setup writable output directory if not already set
+        if not os.getenv("PV_CURVE_OUTPUT_DIR"):
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            project_generated = os.path.join(project_root, "generated")
+            
+            # Try project root's generated folder first
+            try:
+                os.makedirs(project_generated, exist_ok=True)
+                os.environ["PV_CURVE_OUTPUT_DIR"] = project_generated
+            except (IOError, OSError):
+                # Fall back to user's home directory
+                try:
+                    home_output = os.path.join(os.path.expanduser("~"), "pv_curve_output")
+                    os.makedirs(home_output, exist_ok=True)
+                    os.environ["PV_CURVE_OUTPUT_DIR"] = home_output
+                except (IOError, OSError):
+                    # Final fallback to temp directory
+                    import tempfile
+                    temp_output = os.path.join(tempfile.gettempdir(), "pv_curve_output")
+                    os.makedirs(temp_output, exist_ok=True)
+                    os.environ["PV_CURVE_OUTPUT_DIR"] = temp_output
+        
+>>>>>>> 98c5cae (Update for generate_pv_curve and analyze_pv_curve(this one isn't working))
         # Create fresh LLM instance for this call
         llm, prompts, retriever = setup_dependencies("ollama")
         
@@ -247,6 +275,7 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         if user_message and (not state.get("messages") or state["messages"][-1].content != user_message):
             state["messages"].append(HumanMessage(content=user_message))
         
+<<<<<<< HEAD
         # Call the original node function
 <<<<<<< HEAD
         updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
@@ -255,6 +284,10 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
         print(f"DEBUG: generation_agent completed")
 >>>>>>> 09e35b4 (merge from master)
+=======
+        # Call generation agent (creates plot)
+        updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
+>>>>>>> 98c5cae (Update for generate_pv_curve and analyze_pv_curve(this one isn't working))
         
         # Update state
         state_manager.update_state(session_id, updates)
@@ -267,18 +300,12 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         response_text = last_message.content if last_message and hasattr(last_message, 'content') else ""
         results = updated_state.get("results") or {}
         
-        # Build a clickable file:// URL for the image
+        # Build file URL for the image
         image_file_url = None
         save_path = results.get("save_path")
         if save_path:
-            # If save_path is already absolute, use it directly
-            if os.path.isabs(save_path):
-                absolute_path = save_path
-            else:
-                # Otherwise, resolve relative to project root
-                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                absolute_path = os.path.join(project_root, save_path)
-            absolute_path = os.path.abspath(absolute_path)
+            # Resolve to absolute path (save_path from generate_pv_curve is already absolute)
+            absolute_path = os.path.abspath(save_path)
             image_file_url = f"file://{absolute_path}"
         
         return {
@@ -290,10 +317,8 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         }
         
     except Exception as e:
-        # Catch ALL exceptions from anywhere in the function
         error_message = f"Error generating PV curve: {str(e)}"
         
-        # Try to get state for error response, but handle if that fails too
         try:
             updated_state = state_manager.get_state(session_id)
             state_serialized = state_manager.serialize_state(updated_state)
@@ -304,6 +329,93 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
             "results": None,
             "response": error_message,
             "image_file_url": None,
+            "state": state_serialized,
+            "success": False,
+            "error": str(e)
+        }
+
+
+def analyze_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]:
+    """
+    Generate analysis of PV curve results without creating a visual plot.
+    
+    Args:
+        user_message: User's analysis request (optional)
+        session_id: Unique session identifier
+        
+    Returns:
+        Dict with analysis results and updated state
+    """
+    try:
+        # Set flag to skip blocking plt.show() in MCP context
+        os.environ["PV_CURVE_SKIP_SHOW"] = "1"
+        
+        # Setup writable output directory if not already set
+        # (needed even for analysis since generate_pv_curve creates the directory)
+        if not os.getenv("PV_CURVE_OUTPUT_DIR"):
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            project_generated = os.path.join(project_root, "generated")
+            os.makedirs(project_generated, exist_ok=True)
+            os.environ["PV_CURVE_OUTPUT_DIR"] = project_generated
+        
+        # Create fresh LLM instance for this call
+        llm, prompts, retriever = setup_dependencies("ollama")
+        
+        state = state_manager.get_state(session_id)
+        
+        # Add user message if provided and not already there
+        if user_message and (not state.get("messages") or state["messages"][-1].content != user_message):
+            state["messages"].append(HumanMessage(content=user_message))
+        
+        # Call analysis agent (no plot, just analysis)
+        updates = analysis_agent(state, llm, prompts, retriever, generate_pv_curve)
+        
+        # Update state
+        state_manager.update_state(session_id, updates)
+        
+        # Get updated state
+        updated_state = state_manager.get_state(session_id)
+        
+        # Extract response and results
+        last_message = updated_state["messages"][-1] if updated_state.get("messages") else None
+        response_text = last_message.content if last_message and hasattr(last_message, 'content') else ""
+        results = updated_state.get("results") or {}
+        
+        # Extract analysis data from node_response
+        node_response = updates.get("node_response")
+        analysis_data = {}
+
+        if node_response:
+            if hasattr(node_response, "model_dump"): # Pydantic v2
+                analysis_data = node_response.model_dump().get("data", {})
+            elif hasattr(node_response, "dict"):     # Pydantic v1
+                analysis_data = node_response.dict().get("data", {})
+            elif isinstance(node_response, dict):    # Regular dict
+                analysis_data = node_response.get("data", {})
+            else:                                    # Generic object
+                analysis_data = getattr(node_response, "data", {})
+        
+        return {
+            "results": results,
+            "analysis": analysis_data.get("analysis", ""),
+            "response": response_text,
+            "state": state_manager.serialize_state(updated_state),
+            "success": True
+        }
+        
+    except Exception as e:
+        error_message = f"Error analyzing PV curve: {str(e)}"
+        
+        try:
+            updated_state = state_manager.get_state(session_id)
+            state_serialized = state_manager.serialize_state(updated_state)
+        except:
+            state_serialized = {}
+        
+        return {
+            "results": None,
+            "analysis": None,
+            "response": error_message,
             "state": state_serialized,
             "success": False,
             "error": str(e)

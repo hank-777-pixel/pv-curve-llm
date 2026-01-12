@@ -44,7 +44,7 @@ def get_session_id() -> dict:
 @mcp.tool()
 def classify_message(user_message: str, session_id: str) -> dict:
     """
-    Classify user message into one of: question_general, question_parameter, parameter, generation.
+    Classify user message into one of: question_general, question_parameter, parameter, generation, analysis.
     
     Args:
         user_message: The user's input message to classify
@@ -119,16 +119,32 @@ def modify_parameters(user_message: str, session_id: str) -> dict:
 @mcp.tool()
 def generate_pv_curve(user_message: str, session_id: str) -> dict:
     """
-    Generate PV curve analysis for the current system configuration.
+    Generate PV curve with visual plot for the current system configuration.
     
     Args:
         user_message: User's generation request (optional, can include parameters)
         session_id: Unique session identifier
         
     Returns:
-        Dict with PV curve results and updated state
+        Dict with PV curve results, image file URL, and updated state
     """
     return tools.generate_pv_curve_tool(user_message, session_id)
+
+
+@mcp.tool()
+def analyze_pv_curve(user_message: str, session_id: str) -> dict:
+    """
+    Generate analysis of PV curve results without creating a visual plot.
+    Provides detailed analysis of voltage stability, load margin, and system behavior.
+    
+    Args:
+        user_message: User's analysis request (optional)
+        session_id: Unique session identifier
+        
+    Returns:
+        Dict with analysis results and updated state
+    """
+    return tools.analyze_pv_curve_tool(user_message, session_id)
 
 
 @mcp.tool()
