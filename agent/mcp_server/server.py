@@ -131,20 +131,20 @@ def generate_pv_curve(user_message: str, session_id: str) -> dict:
     return tools.generate_pv_curve_tool(user_message, session_id)
 
 
-@mcp.tool()
-def analyze_pv_curve(user_message: str, session_id: str) -> dict:
-    """
-    Generate analysis of PV curve results without creating a visual plot.
-    Provides detailed analysis of voltage stability, load margin, and system behavior.
+# @mcp.tool()
+# def analyze_pv_curve(user_message: str, session_id: str) -> dict:
+#     """
+#     Generate analysis of PV curve results without creating a visual plot.
+#     Provides detailed analysis of voltage stability, load margin, and system behavior.
     
-    Args:
-        user_message: User's analysis request (optional)
-        session_id: Unique session identifier
+#     Args:
+#         user_message: User's analysis request (optional)
+#         session_id: Unique session identifier
         
-    Returns:
-        Dict with analysis results and updated state
-    """
-    return tools.analyze_pv_curve_tool(user_message, session_id)
+#     Returns:
+#         Dict with analysis results and updated state
+#     """
+#     return tools.analyze_pv_curve_tool(user_message, session_id)
 
 
 @mcp.tool()
