@@ -219,27 +219,7 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         Dict with PV curve results, image file URL, and updated state
     """
     try:
-<<<<<<< HEAD
         # Auto-detect writable directory for Claude Desktop if env var not set
-        if not os.getenv("PV_CURVE_OUTPUT_DIR"):
-            # Try to use project's generated folder first (if writable)
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            project_generated = os.path.join(project_root, "generated")
-            
-            # Check if project's generated folder is writable
-            if os.access(project_root, os.W_OK):
-                os.environ["PV_CURVE_OUTPUT_DIR"] = project_generated
-            else:
-                # Fall back to user's home directory
-                home_dir = os.path.expanduser("~")
-                home_output = os.path.join(home_dir, "pv_curve_output")
-                os.makedirs(home_output, exist_ok=True)
-                os.environ["PV_CURVE_OUTPUT_DIR"] = home_output
-        
-        # Set flag to skip blocking plt.show() in MCP context (avoids hanging)
-        os.environ["PV_CURVE_SKIP_SHOW"] = "1"
-        
-=======
         # Set flag to skip blocking plt.show() in MCP context
         os.environ["PV_CURVE_SKIP_SHOW"] = "1"
         
@@ -265,7 +245,6 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
                     os.makedirs(temp_output, exist_ok=True)
                     os.environ["PV_CURVE_OUTPUT_DIR"] = temp_output
         
->>>>>>> 98c5cae (Update for generate_pv_curve and analyze_pv_curve(this one isn't working))
         # Create fresh LLM instance for this call
         llm, prompts, retriever = setup_dependencies("ollama")
         
@@ -275,19 +254,8 @@ def generate_pv_curve_tool(user_message: str, session_id: str) -> Dict[str, Any]
         if user_message and (not state.get("messages") or state["messages"][-1].content != user_message):
             state["messages"].append(HumanMessage(content=user_message))
         
-<<<<<<< HEAD
         # Call the original node function
-<<<<<<< HEAD
         updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
-=======
-        print(f"DEBUG: About to call generation_agent")
-        updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
-        print(f"DEBUG: generation_agent completed")
->>>>>>> 09e35b4 (merge from master)
-=======
-        # Call generation agent (creates plot)
-        updates = generation_agent(state, llm, prompts, retriever, generate_pv_curve)
->>>>>>> 98c5cae (Update for generate_pv_curve and analyze_pv_curve(this one isn't working))
         
         # Update state
         state_manager.update_state(session_id, updates)
