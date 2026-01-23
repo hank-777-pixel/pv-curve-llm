@@ -120,7 +120,7 @@ def create_workflow(llm, prompts, retriever, generate_pv_curve):
         route_after_error,
         {
             "parameter": "parameter",
-            "generation": "generation",
+            "generation": "generation", 
             "analysis": "analysis",
             "advance_step": "advance_step",
             "END": END
