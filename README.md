@@ -981,3 +981,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Maintained by**: CURENT Research Team
 **Contact**: [GitHub Issues](https://github.com/CURENT/pv-curve-llm/issues)
 
+<img src="https://github.com/CURENT/andes/raw/master/docs/source/images/sponsors/CURENT_Logo_NameOnTrans.png" alt="CURENT ERC Logo" width="200" height="auto">

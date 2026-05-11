@@ -1,52 +1,46 @@
 from langchain_core.messages import AIMessage
+import andes
 from agent.state.app_state import State
 from agent.schemas.parameter import InputModifier
 from agent.schemas.response import NodeResponse
 from datetime import datetime
 from agent.utils.display import display_executing_node
-import pandapower.networks as pn
 from agent.utils.common_utils import apply_contingency_lines_update
 
-_NET_MAP = {
-    "ieee14": pn.case14,
-    "ieee24": pn.case24_ieee_rts,
-    "ieee30": pn.case30,
-    "ieee39": pn.case39,
-    "ieee57": pn.case57,
-    "ieee118": pn.case118,
-    "ieee300": pn.case300,
+_CASE_MAP = {
+    "ieee14": "ieee14/ieee14.json",
+    "ieee39": "ieee39/ieee39.json",
+    "ieee118": "matpower/case118.m",
+    "ieee300": "matpower/case300.m",
 }
 
 
 def _validate_contingency_pairs_for_grid(grid, pairs):
-    """Raise ValueError if any (from_bus, to_bus) pair does not exist as a line/trafo in the grid."""
-    if grid not in _NET_MAP:
+    """Raise ValueError if any (from_bus, to_bus) pair does not exist as a line in the grid."""
+    if grid not in _CASE_MAP:
         return
 
-    net = _NET_MAP[grid]()
-    for fb, tb in pairs:
-        fb0, tb0 = fb - 1, tb - 1
-        line_mask = (
-            ((net.line["from_bus"] == fb0) & (net.line["to_bus"] == tb0)) |
-            ((net.line["from_bus"] == tb0) & (net.line["to_bus"] == fb0))
-        )
-        trafo_mask = (
-            ((net.trafo["hv_bus"] == fb0) & (net.trafo["lv_bus"] == tb0)) |
-            ((net.trafo["hv_bus"] == tb0) & (net.trafo["lv_bus"] == fb0))
-        ) if not net.trafo.empty else None
+    ss = andes.load(andes.get_case(_CASE_MAP[grid]), setup=False)
+    line_pairs = set()
+    for uid in range(len(ss.Line.bus1.v)):
+        b1 = int(ss.Line.bus1.v[uid])
+        b2 = int(ss.Line.bus2.v[uid])
+        line_pairs.add(tuple(sorted((b1, b2))))
 
-        if not line_mask.any() and (trafo_mask is None or not trafo_mask.any()):
+    for fb, tb in pairs:
+        if tuple(sorted((int(fb), int(tb)))) not in line_pairs:
             raise ValueError(
-                f"No line or transformer found between bus {fb} and bus {tb} in grid '{grid}'."
+                f"No line found between bus {fb} and bus {tb} in grid '{grid}'."
             )
 
 
 def _validate_gen_voltage_setpoints(grid, setpoints_dict, voltage_limit_min, voltage_max_pu=1.2):
     """Raise ValueError if a gen index is not a generator or vm_pu is outside [voltage_limit_min, voltage_max_pu]."""
-    if grid not in _NET_MAP:
+    if grid not in _CASE_MAP:
         return
-    net = _NET_MAP[grid]()
-    valid_gen_1based = list(net.gen.index + 1)
+
+    ss = andes.load(andes.get_case(_CASE_MAP[grid]), setup=False)
+    valid_gen_1based = [int(idx) for idx in ss.PV.idx.v.tolist()]
     for gen_idx, vm_pu in setpoints_dict.items():
         if gen_idx not in valid_gen_1based:
             raise ValueError(

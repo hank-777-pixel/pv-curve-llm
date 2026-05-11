@@ -9,7 +9,7 @@ pydantic
 typing-extensions
 numpy
 matplotlib
-pandapower
+andes
 numba
 python-dotenv
 rich

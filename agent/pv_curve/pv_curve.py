@@ -1,282 +1,306 @@
-import numpy as np
-import matplotlib
+"""P–V curve generation using ANDES continuation power flow (CPF)."""
 
-# FastAPI/web runs this code in a thread pool; macOS GUI backend (macosx) only works on the main thread.
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import pandapower as pp
-import pandapower.networks as pn
-import pandapower.topology as top
-from datetime import datetime
 import os
+from datetime import datetime
 
-# This function creates a P–V curve to show how bus voltage drops as the system load increases
-def generate_pv_curve(
-    grid="ieee39",             # Which test system to use (e.g., IEEE 39-bus system)
-    target_bus_idx=5,          # Bus number where we monitor voltage
-    step_size=0.01,            # Increment size for load increase (e.g., 1% per step)
-    max_scale=3.0,             # Maximum multiplier for load (e.g., 3 = 300% load)
-    power_factor=0.95,         # Assumed constant power factor (relationship between real and reactive power)
-    voltage_limit=0.4,         # Minimum acceptable voltage limit (in pu) before we stop
-    capacitive=False,         # Whether the power factor is capacitive or inductive (default is inductive)
-    skip_plot=False,          # Skip visual graph generation (for analysis-only mode)
-    contingency_lines=None,    # List of (from_bus, to_bus) pairs, 1-based; e.g. [(1, 2)] or [(2, 3), (3, 4)]. Lines/transformers between those buses are taken out of service.
-    gen_voltage_setpoints=None,  # Dict of {gen_index: vm_pu} to override generator voltage setpoints before the sweep
-                                 # e.g. {1: 1.05} — set generator 1 to 1.05 pu
-):
-    net_map = {
-        "ieee14": pn.case14,
-        "ieee24": pn.case24_ieee_rts,
-        "ieee30": pn.case30,
-        "ieee39": pn.case39,
-        "ieee57": pn.case57,
-        "ieee118": pn.case118,
-        "ieee300": pn.case300,
-    }
+import andes
+import matplotlib
+import numpy as np
 
-    if grid not in net_map:
-        raise ValueError(f"Unsupported grid '{grid}'. Choose from {list(net_map)}")
+# # FastAPI/web runs this code in a thread pool; macOS GUI backend (macosx) only works on the main thread.
+# matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
+CASE_MAP = {
+    "ieee14": "ieee14/ieee14.json",
+    "ieee39": "ieee39/ieee39_full.xlsx",
+    "ieee118": "matpower/case118.m",
+    "ieee300": "matpower/case300.m",
+}
+
+
+def _get_output_path(grid: str) -> str:
+    """Build the filesystem path for a saved P–V plot PNG.
+
+    Args:
+        grid: Case name key (e.g. ``ieee39``) used in the output filename.
+
+    Returns:
+        Full path under ``PV_CURVE_OUTPUT_DIR`` or ``generated``.
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # Choose output directory:
-    # 1) If PV_CURVE_OUTPUT_DIR is set, use that
-    # 2) Otherwise fall back to "generated" (CLI behavior stays the same)
     output_dir = os.getenv("PV_CURVE_OUTPUT_DIR") or "generated"
     os.makedirs(output_dir, exist_ok=True)
+    return os.path.join(output_dir, f"pv_curve_{grid}_{timestamp}.png")
 
-    save_path = os.path.join(output_dir, f"pv_curve_{grid}_{timestamp}.png")
 
-    net = net_map[grid]()
+def _apply_contingencies(ss, contingency_lines):
+    """Take transmission lines out of service before ``ss.setup()``.
 
-    # Convert target_bus_idx from 1-based (user input) to 0-based (pandapower index)
-    target_bus_idx -= 1
-    if target_bus_idx not in net.bus.index:
-        raise ValueError(f"Bus {target_bus_idx + 1} not found in grid '{grid}'. Valid range: 1 to {len(net.bus)}.")
+    Args:
+        ss: ANDES system loaded with ``setup=False``.
+        contingency_lines: List of ``(from_bus, to_bus)`` pairs using **bus indices**
+            as in the case file (same convention as ANDES ``Bus.idx``).
 
-    # Apply line contingencies (N-1 / N-k): disable specified lines and verify connectivity
-    if contingency_lines:
-        for (fb, tb) in contingency_lines:
-            fb -= 1
-            tb -= 1
-            line_mask = (
-                ((net.line["from_bus"] == fb) & (net.line["to_bus"] == tb)) |
-                ((net.line["from_bus"] == tb) & (net.line["to_bus"] == fb))
-            )
-            trafo_mask = (
-                ((net.trafo["hv_bus"] == fb) & (net.trafo["lv_bus"] == tb)) |
-                ((net.trafo["hv_bus"] == tb) & (net.trafo["lv_bus"] == fb))
-            ) if not net.trafo.empty else None
+    Raises:
+        ValueError: If no line exists for a given pair.
+    """
+    if not contingency_lines:
+        return
 
-            if not line_mask.any() and (trafo_mask is None or not trafo_mask.any()):
-                raise ValueError(f"No line or transformer found between bus {fb+1} and bus {tb+1} in grid '{grid}'.")
+    for fb, tb in contingency_lines:
+        found = False
+        for uid in range(len(ss.Line.bus1.v)):
+            b1 = int(ss.Line.bus1.v[uid])
+            b2 = int(ss.Line.bus2.v[uid])
+            if {b1, b2} == {int(fb), int(tb)}:
+                ss.Line.u.v[uid] = 0
+                found = True
+        if not found:
+            raise ValueError(f"No line found between bus {fb} and bus {tb} in grid.")
 
-            if line_mask.any():
-                net.line.loc[line_mask, "in_service"] = False
-                print(f"Line between bus {fb+1} and bus {tb+1} taken out of service.")
-            if trafo_mask is not None and trafo_mask.any():
-                net.trafo.loc[trafo_mask, "in_service"] = False
-                print(f"Transformer between bus {fb+1} and bus {tb+1} taken out of service.")
 
-        # Verify the network is still fully connected after removing the lines
-        mg = top.create_nxgraph(net)
-        connected_buses = list(top.connected_components(mg))
+def _apply_gen_voltage_setpoints(ss, gen_voltage_setpoints):
+    """Override PV generator voltage setpoints before ``ss.setup()``.
 
-        if len(connected_buses) > 1:
+    Args:
+        ss: ANDES system loaded with ``setup=False``.
+        gen_voltage_setpoints: Mapping **PV device index** -> voltage magnitude in pu
+            (keys must match ``ss.PV.idx``).
+
+    Raises:
+        ValueError: If a key is not a valid PV index in this case.
+    """
+    if not gen_voltage_setpoints:
+        return
+
+    valid_indices = set(int(idx) for idx in ss.PV.idx.v)
+    for gen_idx, vm_pu in gen_voltage_setpoints.items():
+        gen_idx = int(gen_idx)
+        if gen_idx not in valid_indices:
             raise ValueError(
-                f"Removing lines {contingency_lines} disconnects the network into "
-                f"{len(connected_buses)} islands. Choose a different contingency."
+                f"Generator index {gen_idx} not found in grid. Valid indices: {sorted(valid_indices)}"
             )
+        uid = ss.PV.idx2uid(gen_idx)
+        ss.PV.v0.v[uid] = float(vm_pu)
 
-    # Override generator voltage setpoints (AVR targets) on generating buses only
-    if gen_voltage_setpoints:
-        for gen_idx, vm_pu in gen_voltage_setpoints.items():
-            gen_idx -= 1
-            if gen_idx not in net.gen.index:
-                raise ValueError(f"Generator index {gen_idx+1} not found in grid '{grid}'. Valid indices: {list(net.gen.index+1)}")
-            net.gen.at[gen_idx, "vm_pu"] = vm_pu
-            print(f"Generator {gen_idx+1} voltage setpoint set to {vm_pu} pu.")
 
-    # Save original active (P) and reactive (Q) loads to scale later
-    net.load["p_mw_base"] = net.load["p_mw"]
-    net.load["q_mvar_base"] = net.load["q_mvar"]
+def _build_targets(ss, max_scale, power_factor, capacitive):
+    """Build per-load P and Q targets for CPF from base-case PQ ``p0``.
 
-    # List of all buses with loads connected
-    scale_buses = list(net.load["bus"].values)
+    Args:
+        ss: ANDES system after ``setup()`` (PQ ``p0`` available).
+        max_scale: Active-power multiplier applied uniformly to all PQ ``p0`` (target load level).
+        power_factor: Assumed constant |PF| for loads when building ``q0`` from ``p0``.
+        capacitive: If True, reactive target uses leading (capacitive) sign; else lagging.
 
-    # Store results for each step (total load and voltage)
-    results = []
+    Returns:
+        Tuple ``(p0_base, p0_target, q0_target)`` as arrays suitable for ``ss.CPF.run``.
+    """
+    p0_base = ss.PQ.p0.v.copy()
+    p0_target = p0_base * float(max_scale)
+    sign = -1 if capacitive else 1
+    q0_target = sign * p0_target * np.tan(np.arccos(float(power_factor)))
+    return p0_base, p0_target, q0_target
 
-    # Start from normal load (scale = 1.0)
-    scale = 1.0
-    converged = True
 
-    # Loop to keep increasing the load step by step
-    while scale <= max_scale and converged:
-        for idx in net.load.index:
-            if net.load.at[idx, "bus"] in scale_buses:
-                base_p = net.load.at[idx, "p_mw_base"]
-                
-                # Increase active power
-                net.load.at[idx, "p_mw"] = base_p * scale
-                
-                # Calculate corresponding reactive power using power factor
-                # net.load.at[idx, "q_mvar"] = net.load.at[idx, "p_mw"] * np.tan(np.arccos(power_factor))
+def _build_plot(P_vals, V_vals, nose_idx, target_bus_idx, save_path):
+    """Save a P–V figure (MW vs pu voltage) for the monitored bus.
 
-                sign = -1 if capacitive else 1
-                net.load.at[idx, "q_mvar"] = sign * net.load.at[idx, "p_mw"] * np.tan(np.arccos(power_factor))
+    Args:
+        P_vals: Sequence of total active load (MW) at each CPF point.
+        V_vals: Sequence of voltage magnitude (pu) at the monitored bus.
+        nose_idx: Index into ``P_vals`` / ``V_vals`` of the nose (max load) point.
+        target_bus_idx: Bus index (same numbering as inputs) for axis label.
+        save_path: Output PNG path.
+    """
+    plt.figure(figsize=(8, 6))
 
-        try:
-            # Run power flow analysis to solve for voltages
-            pp.runpp(net, init="results")
-            
-            # Get voltage magnitude at the chosen bus
-            v_mag = net.res_bus.at[target_bus_idx, "vm_pu"]
-            
-            # Calculate total system active load
-            total_p = net.load["p_mw"].sum()
+    # If CPF traced full curve, split into upper/lower around the nose.
+    if 0 < nose_idx < len(P_vals) - 1:
+        plt.plot(P_vals[: nose_idx + 1], V_vals[: nose_idx + 1], marker="o", linestyle="-", color="blue", label="Upper Branch")
+        plt.plot(P_vals[nose_idx:], V_vals[nose_idx:], marker="x", linestyle="-", color="red", label="Lower Branch")
+    else:
+        plt.plot(P_vals, V_vals, marker="o", linestyle="-", color="blue", label="PV Curve")
 
-            # Save the current load and voltage for plotting later
-            results.append((total_p, v_mag))
+    nose_p = P_vals[nose_idx]
+    nose_v = V_vals[nose_idx]
+    plt.scatter(nose_p, nose_v, color="red", zorder=5, label="Nose Point")
+    plt.annotate(
+        f"P={nose_p:.1f} MW\nV={nose_v:.3f} pu",
+        xy=(nose_p, nose_v),
+        xytext=(nose_p * 1.005, nose_v),
+        arrowprops=dict(arrowstyle="->", color="black"),
+        fontsize=9,
+    )
 
-            # Stop if voltage drops below chosen limit (collapse point)
-            if v_mag < voltage_limit:
-                print("Voltage below limit, stopping.")
-                break
+    plt.xlabel("Total Active Load P (MW)")
+    plt.ylabel(f"Voltage at Bus {target_bus_idx} (pu)")
+    plt.title("System P–V Curve (Voltage Stability Analysis)")
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
 
-        except pp.LoadflowNotConverged:
-            # If the solver can't find a valid solution, we have reached the collapse point
-            if not skip_plot:
-                print("Voltage collapse point successfully identified.")
-            converged = False
-            break
 
-        # Increase the load multiplier for the next step
-        scale += step_size
+def generate_pv_curve(
+    grid="ieee39",
+    target_bus_idx=5,
+    step_size=0.1,
+    max_scale=3.0,
+    power_factor=0.95,
+    voltage_limit=0.4,
+    capacitive=False,
+    skip_plot=False,
+    contingency_lines=None,
+    gen_voltage_setpoints=None,
+    continuation=True,
+):
+    """Run ANDES CPF and return a summary dict plus optional P–V plot.
 
-    # Split saved results into separate lists for plotting
-    P_vals, V_vals = zip(*results)
+    Uses uniform PQ scaling toward ``p0 * max_scale`` with Q derived from
+    ``power_factor`` and ``capacitive``, per ANDES CPF ``p0_target`` / ``q0_target``.
 
-    # Find point with maximum load (approximate nose point of the curve)
-    max_p_idx = int(np.argmax(P_vals))  # Convert to Python int for JSON serialization
+    Args:
+        grid: Built-in case key; must exist in ``CASE_MAP``.
+        target_bus_idx: Bus whose |V| is traced (same index convention as the case).
+        step_size: Initial CPF continuation step; mapped to ``ss.CPF.config.step``.
+        max_scale: Load growth factor toward ``p0 * max_scale`` (uniform PQ).
+        power_factor: Constant power-factor magnitude in (0, 1] for Q from P.
+        voltage_limit: Results are truncated after voltage first drops below this (pu).
+        capacitive: If True, leading reactive convention for Q targets.
+        skip_plot: If True, do not write a PNG; ``save_path`` in the result is None.
+        contingency_lines: Optional list of ``(from_bus, to_bus)`` line outages before setup.
+        gen_voltage_setpoints: Optional ``{pv_idx: vm_pu}`` before setup.
+        continuation: If True, ``stop_at='FULL'``; else ``stop_at='NOSE'``.
+
+    Returns:
+        Dict with curve arrays, nose metadata, limits, and ``save_path``.
+
+    Raises:
+        ValueError: Unknown grid, invalid bus, no CPF points, or invalid contingencies / setpoints.
+    """
+    if grid not in CASE_MAP:
+        raise ValueError(f"Unsupported grid '{grid}'. Choose from {list(CASE_MAP)}")
+
+    ss = andes.load(andes.get_case(CASE_MAP[grid]), setup=False)
+
+    bus_indices = set(int(idx) for idx in ss.Bus.idx.v)
+    if int(target_bus_idx) not in bus_indices:
+        raise ValueError(
+            f"Bus {target_bus_idx} not found in grid '{grid}'. Valid range: {min(bus_indices)} to {max(bus_indices)}."
+        )
+
+    _apply_contingencies(ss, contingency_lines)
+    _apply_gen_voltage_setpoints(ss, gen_voltage_setpoints)
+
+    ss.setup()
+    ss.PFlow.run()
+
+    p0_base, p0_target, q0_target = _build_targets(ss, max_scale, power_factor, capacitive)
+
+    ss.CPF.config.step = float(step_size)
+    ss.CPF.config.stop_at = "FULL" if continuation else "NOSE"
+    ss.CPF.run(p0_target=p0_target, q0_target=q0_target)
+
+    bus_uid = ss.Bus.idx2uid(int(target_bus_idx))
+    lam = np.array(ss.CPF.lam, dtype=float)
+    voltages = np.array(ss.CPF.V[bus_uid, :], dtype=float)
+    # print(f"bus_uid: {bus_uid}\n, lam: {lam}\n, voltages: {voltages}\n")
+
+    # convert p.u. base load into MV
+    base_mva = float(getattr(getattr(ss, "config", object()), "mva", 100.0))
+    base_p_mw = float(np.sum(p0_base) * base_mva)
+    loads_mw = base_p_mw * (1.0 + lam * (float(max_scale) - 1.0))
+    print(f"base_mva: {base_mva},\n base_p_mw: {base_p_mw},\n loads_mw: {loads_mw}\n")
+
+    # stop tracking when voltage goes below the limit.
+    below_limit_idx = np.where(voltages < float(voltage_limit))[0]
+    if below_limit_idx.size > 0:
+        end_idx = int(below_limit_idx[0]) + 1
+        loads_mw = loads_mw[:end_idx]
+        voltages = voltages[:end_idx]
+        lam = lam[:end_idx]
+        # print(end_idx)
+
+    if len(loads_mw) == 0:
+        raise ValueError("No CPF result points were produced.")
+
+    P_vals = [float(v) for v in loads_mw.tolist()]
+    V_vals = [float(v) for v in voltages.tolist()]
+    max_p_idx = int(np.argmax(P_vals))
     nose_p = P_vals[max_p_idx]
     nose_v = V_vals[max_p_idx]
-    
-    # Only create plot if skip_plot is False
+    # print(bus_uid, lam, voltages)
+    save_path = None
     if not skip_plot:
-        # Symmetric lower branch (plot only): reflect upper branch in V around nose voltage
-        n = max_p_idx + 1
-        P_lower = P_vals[:n]
-        V_lower = [2 * nose_v - V_vals[i] for i in range(n)]
+        save_path = _get_output_path(grid)
+        _build_plot(P_vals, V_vals, max_p_idx, int(target_bus_idx), save_path)
 
-        # Create the plot
-        plt.figure(figsize=(8, 6))
-        # Upper branch (stable) from power-increase sweep
-        plt.plot(P_vals, V_vals, marker="o", linestyle="-", color="blue", label="Upper Branch")
-        plt.plot(P_lower, V_lower, marker="x", linestyle="-", color="red", label="Lower Branch (symmetric)")
-        plt.scatter(nose_p, nose_v, color="red", zorder=5, label="Nose Point")
-        plt.annotate(
-            f"P={nose_p:.1f} MW\nV={nose_v:.3f} pu",
-            xy=(nose_p, nose_v),
-            xytext=(nose_p * 1.005, nose_v),
-            arrowprops=dict(arrowstyle="->", color="black"),
-            fontsize=9
-        )
-        plt.xlabel("Total Active Load P (MW)")
-        plt.ylabel(f"Voltage at Bus {target_bus_idx + 1} (pu)")
-        plt.title("System P–V Curve (Voltage Stability Analysis)")
-        
-        # Set y-axis to include both branches
-        y_min = max(0, min(min(V_vals), min(V_lower)) * 0.99)
-        y_max = max(max(V_vals), max(V_lower)) * 1.01
-        plt.ylim(y_min, y_max)
-        
-        plt.grid(True)
-        plt.legend()
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
-        
-        print(f"P-V curve successfully generated and saved at: {save_path}")
-        print("Displaying curve preview - close the plot window to continue analysis...")
-        
-        plt.show()
-        plt.close()
-    else:
-        # When skipping plot, set save_path to None
-        save_path = None
-
-    # Add points and details of shape for the LLM to better understand the curve
     curve_points = []
     initial_voltage = float(V_vals[0])
     initial_load = float(P_vals[0])
-    
+
     for i, (load, voltage) in enumerate(zip(P_vals, V_vals)):
         load_scale = load / initial_load if initial_load > 0 else 1.0
         voltage_drop_from_initial = initial_voltage - voltage
         voltage_drop_percent = (voltage_drop_from_initial / initial_voltage) * 100 if initial_voltage > 0 else 0
-        
-        curve_points.append({
-            "step": i + 1,
-            "load_mw": float(load),
-            "voltage_pu": float(voltage),
-            "load_scale_factor": float(load_scale),
-            "voltage_drop_from_initial_pu": float(voltage_drop_from_initial),
-            "voltage_drop_percent": float(voltage_drop_percent),
-            "is_nose_point": bool(i == max_p_idx)  # Convert to Python bool for JSON serialization
-        })
+        curve_points.append(
+            {
+                "step": i + 1,
+                "load_mw": float(load),
+                "voltage_pu": float(voltage),
+                "load_scale_factor": float(load_scale),
+                "voltage_drop_from_initial_pu": float(voltage_drop_from_initial),
+                "voltage_drop_percent": float(voltage_drop_percent),
+                "is_nose_point": bool(i == max_p_idx),
+            }
+        )
 
-    results_summary = {
+    return {
         "grid_system": grid,
-        "target_bus": target_bus_idx + 1,  # Report back as 1-based
+        "target_bus": int(target_bus_idx),
         "power_factor": power_factor,
         "capacitive_load": capacitive,
         "contingency_lines": contingency_lines,
         "gen_voltage_setpoints": gen_voltage_setpoints,
-        "load_values_mw": list(P_vals),
-        "voltage_values_pu": list(V_vals),
+        "load_values_mw": P_vals,
+        "voltage_values_pu": V_vals,
         "curve_points": curve_points,
         "nose_point": {
             "load_mw": float(nose_p),
             "voltage_pu": float(nose_v),
-            "index": int(max_p_idx)
+            "index": int(max_p_idx),
         },
         "initial_conditions": {
             "load_mw": float(P_vals[0]),
-            "voltage_pu": float(V_vals[0])
+            "voltage_pu": float(V_vals[0]),
         },
         "final_conditions": {
             "load_mw": float(P_vals[-1]),
-            "voltage_pu": float(V_vals[-1])
+            "voltage_pu": float(V_vals[-1]),
         },
         "voltage_drop_total": float(V_vals[0] - V_vals[-1]),
         "voltage_drop_percent_total": float((V_vals[0] - V_vals[-1]) / V_vals[0] * 100) if V_vals[0] > 0 else 0,
         "load_margin_mw": float(nose_p - P_vals[0]),
         "load_margin_percent": float((nose_p - P_vals[0]) / P_vals[0] * 100) if P_vals[0] > 0 else 0,
-        "converged_steps": len(results),
+        "converged_steps": len(P_vals),
         "voltage_limit": voltage_limit,
-        "save_path": save_path
+        "save_path": save_path,
     }
 
-    # Analysis details will be handled by the analysis agent
-    # Results summary is returned for the LLM to analyze
-
-    return results_summary
 
 if __name__ == "__main__":
-    """
-    Runs locally using the following parameters.
-
-    Modify the parameters to your liking, then run `python pv_curve.py` in this directory.
-    """
-
     generate_pv_curve(
         grid="ieee39",
         target_bus_idx=5,
-        step_size=0.01,
+        step_size=0.1,
         max_scale=3.0,
         power_factor=0.95,
         voltage_limit=0.4,
         capacitive=False,
         skip_plot=False,
-        # contingency_lines=[(2, 3), (3, 4)],
+        continuation=True,
+        # contingency_lines=[(1, 3), (3, 4)],
         # gen_voltage_setpoints={1: 2},
     )

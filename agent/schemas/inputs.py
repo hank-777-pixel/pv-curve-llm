@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Tuple
 from typing_extensions import Literal
 from pydantic import BaseModel, Field, ConfigDict
 
-GridSystem = Literal["ieee14", "ieee24", "ieee30", "ieee39", "ieee57", "ieee118", "ieee300"]
+GridSystem = Literal["ieee14", "ieee39", "ieee118", "ieee300"]
 InputParameter = Literal[
     "grid",
     "bus_id",
@@ -21,7 +21,8 @@ class Inputs(BaseModel):
 
     grid: GridSystem = "ieee39"
     bus_id: int = Field(default=5, ge=0, le=300)
-    step_size: float = Field(default=0.01, gt=0, le=0.1)
+    # ANDES CPF initial continuation step size (lambda units, not % load increment).
+    step_size: float = Field(default=0.1, gt=0, le=0.5)
     max_scale: float = Field(default=3.0, gt=1.0, le=10.0)
     power_factor: float = Field(default=0.95, gt=0, le=1.0)
     voltage_limit: float = Field(default=0.4, gt=0, le=1.0)

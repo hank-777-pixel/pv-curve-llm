@@ -71,6 +71,7 @@ def generation_agent(state: State, llm, prompts, retriever, generate_pv_curve):
         power_factor=inputs.power_factor,
         voltage_limit=inputs.voltage_limit,
         capacitive=inputs.capacitive,
+        continuation=inputs.continuation,
         skip_plot=False,  # Generate the visual graph
         contingency_lines=inputs.contingency_lines,
         gen_voltage_setpoints=inputs.gen_voltage_setpoints,
