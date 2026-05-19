@@ -22,7 +22,7 @@ WORKDIR /app
 # Install Python deps in one layer (agent deps + backend deps)
 COPY requirements.txt ./
 COPY web/backend/requirements.txt ./web-requirements.txt
-RUN pip install --no-cache-dir --retries 10 --default-timeout=120 -r requirements.txt -r web-requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -r web-requirements.txt
 
 # Copy application code
 COPY agent/ agent/
