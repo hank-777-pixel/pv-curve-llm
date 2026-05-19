@@ -24,11 +24,7 @@ services:
         value: /data/plots
       # Default LLM provider (users configure their own key via the Settings page)
       - key: DEFAULT_LLM_PROVIDER
-        value: ollama
-      - key: DEFAULT_OLLAMA_URL
-        value: http://localhost:11434
-      - key: DEFAULT_OLLAMA_MODEL
-        value: llama3.1:8b
+        value: openai
     disk:
       name: pv-curve-data
       mountPath: /data
