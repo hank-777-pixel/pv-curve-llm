@@ -16,7 +16,13 @@ import { useAppStore } from "../store/appStore";
 import { getParameters } from "./api";
 import type { WSIncoming, WSOutgoing } from "../types";
 
-const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+function resolveWsUrl(): string {
+  const configured = import.meta.env.VITE_WS_URL as string | undefined;
+  if (configured) return configured.replace(/\/+$/, "");
+  return `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+}
+
+const WS_URL = resolveWsUrl();
 
 // How long to wait before attempting reconnect (doubles each attempt, max 30s)
 const INITIAL_RETRY_MS = 1_000;
@@ -34,8 +40,10 @@ class WebSocketService {
     const store = useAppStore.getState();
     store.setConnectionStatus("connecting");
 
-    const sessionId = store.sessionId ?? "";
-    const url = sessionId ? `${WS_URL}?session_id=${sessionId}` : WS_URL;
+    const existingSessionId = store.sessionId;
+    const sessionId = existingSessionId || crypto.randomUUID();
+    if (!existingSessionId) store.setSessionId(sessionId);
+    const url = `${WS_URL}?session_id=${sessionId}`;
 
     this.ws = new WebSocket(url);
 

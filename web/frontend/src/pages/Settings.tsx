@@ -35,7 +35,10 @@ export default function SettingsPage() {
   }, [sessionId]);
 
   async function handleSave() {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setSaveError("Session not ready yet. Wait for backend connection, then try again.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -58,7 +61,13 @@ export default function SettingsPage() {
   }
 
   async function handleTest() {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setTestResult({
+        success: false,
+        message: "Session not ready yet. Wait for backend connection, then try again.",
+      });
+      return;
+    }
     setTesting(true);
     setTestResult(null);
     try {
@@ -75,8 +84,11 @@ export default function SettingsPage() {
           ? (res.response ?? "Connection successful!")
           : (res.error ?? "Connection failed"),
       });
-    } catch {
-      setTestResult({ success: false, message: "Request failed" });
+    } catch (e: unknown) {
+      setTestResult({
+        success: false,
+        message: e instanceof Error ? e.message : "Request failed",
+      });
     } finally {
       setTesting(false);
     }

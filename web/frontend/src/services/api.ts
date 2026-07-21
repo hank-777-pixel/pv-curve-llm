@@ -13,8 +13,14 @@ import type {
   ConversationDetail,
 } from "../types";
 
+function resolveApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!configured) return "/api/v1";
+  return configured.replace(/\/+$/, "");
+}
+
 const http = axios.create({
-  baseURL: "/api/v1",
+  baseURL: resolveApiBaseUrl(),
   timeout: 30_000,
   headers: { "Content-Type": "application/json" },
 });

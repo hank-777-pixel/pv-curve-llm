@@ -60,9 +60,14 @@ def test_llm(body: LLMConfigRequest, db: Session = Depends(get_db)):
     Test whether the provided LLM config actually works.
     This makes a real (small) API call, so it may take a few seconds.
     """
+    session_service.get_or_create_session(db, body.session_id)
+    config = session_service.get_llm_config(db, body.session_id)
+    api_key = body.api_key or config.get("api_key", "")
+    ollama_url = body.ollama_url or config.get("ollama_url", "")
+
     result = test_llm_connection(
         provider=body.provider,
-        api_key=body.api_key or "",
-        ollama_url=body.ollama_url or "",
+        api_key=api_key,
+        ollama_url=ollama_url,
     )
     return LLMTestResponse(**result)
